@@ -1,74 +1,338 @@
+/* =========================================
+   ESTILOS GLOBALES
+   ========================================= */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-image: url(istockphoto-1409540606-612x612.jpg);
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    margin: 0;
 }
 
+/* =========================================
+   PANTALLAS DE LOGIN Y REGISTRO (MANTENIDAS)
+   ========================================= */
 .registro-container {
     background-color: #fff;
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
 }
 
-h2 {
+
+
+
+.registro-container h2 {
     text-align: center;
-    margin-bottom: 20px;
-    color: #333;
+    margin-bottom: 25px;
+    color: #1c1e21;
+    font-weight: 600;
 }
 
 .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
-    color: #555;
+    margin-bottom: 8px;
+    color: #606770;
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
-.form-group input[type="text"],
-.form-group input[type="email"],
-.form-group input[type="password"] {
-    width: calc(100% - 20px); /* Ajusta el ancho para el padding */
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+.input-wrapper {
+    position: relative;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 1px solid #ccd0d5;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    transition: all 0.3s ease;
+    background: #f5f6f7;
+}
+
+.form-group input:focus {
+    border-color: #0084ff;
+    background: #fff;
+}
+
+.form-group input.valid { border: 2px solid #00a400; background: #fff; }
+.form-group input.invalid { border: 2px solid #fa3e3e; background: #fff; }
+
+.icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
     font-size: 16px;
 }
+.icon.valid-icon { color: #00a400; }
+.icon.invalid-icon { color: #fa3e3e; }
 
+.error-message { color: #fa3e3e; font-size: 13px; margin-top: 5px; min-height: 15px; }
+.info-message { color: #0084ff; font-size: 13px; margin-top: 5px; }
+
+/* Botones genéricos de registro */
 button[type="submit"] {
     width: 100%;
-    padding: 10px;
-    background-color: #007bff;
+    padding: 14px;
+    background-color: #0084ff;
     color: white;
     border: none;
-    border-radius: 4px;
-    font-size: 18px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: 0.2s;
+}
+button[type="submit"]:hover:not(:disabled) { background-color: #0073e6; }
+button[type="submit"]:disabled { background-color: #e4e6eb; color: #bcc0c4; cursor: not-allowed; }
+
+/* =========================================
+   DISEÑO MINIMALISTA DEL CHAT APP
+   ========================================= */
+.chat-layout { 
+    width: 100%; 
+    max-width: 1200px; 
+    height: 90vh; 
+    display: flex; 
+    background: #ffffff; 
+    border-radius: 20px; 
+    box-shadow: 0 12px 35px rgba(0,0,0,0.1); 
+    overflow: hidden; 
 }
 
-button[type="submit"]:hover {
-    background-color: #0056b3;
+/* --- BARRA LATERAL --- */
+.chat-sidebar { 
+    width: 320px; 
+    background: #f8f9fa; 
+    border-right: 1px solid #eaeaea; 
+    display: flex; 
+    flex-direction: column; 
+    padding: 25px 20px; 
 }
 
-.error-message {
-    color: red;
+.chat-sidebar h3 { 
+    color: #1c1e21; 
+    margin-bottom: 5px; 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    font-size: 1.4rem; 
+}
+
+#currentUserDisplay { 
+    color: #606770; 
+    font-size: 0.9rem; 
+    margin-bottom: 30px; 
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eaeaea;
+}
+
+.room-selector h4, .search-history h4 { 
+    font-size: 0.8rem; 
+    text-transform: uppercase; 
+    color: #8d949e; 
+    margin-bottom: 12px; 
+    letter-spacing: 0.5px; 
+    font-weight: 700;
+}
+
+.room-selector { margin-bottom: 25px; }
+
+/* Inputs y Selects dentro del chat */
+select, .chat-sidebar input[type="text"] { 
+    width: 100%; 
+    padding: 10px 15px; 
+    border: 1px solid #ccd0d5; 
+    border-radius: 8px; 
+    outline: none; 
+    background: #fff; 
+    font-size: 0.95rem;
+    transition: 0.2s;
+}
+select:focus, .chat-sidebar input[type="text"]:focus { border-color: #0084ff; }
+
+/* Botones en el chat */
+.btn-primary { 
+    background: #0084ff; 
+    color: #fff; 
+    border: none; 
+    padding: 10px 15px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    transition: 0.2s; 
+    font-weight: 500; 
+}
+.btn-primary:hover { background: #0073e6; }
+
+.btn-danger { 
+    background: #f2f3f5; 
+    color: #fa3e3e; 
+    border: none; 
+    padding: 10px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    transition: 0.2s; 
+    font-weight: 600;
+    margin-top: auto; /* Empuja el botón de salir al fondo */
+}
+.btn-danger:hover { background: #fa3e3e; color: #fff; }
+
+.create-room {
+    margin-top: 15px;
+    border-top: 1px solid #eaeaea;
+}
+
+/* --- ÁREA PRINCIPAL DEL CHAT --- */
+.chat-main { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    background: #f0f2f5; 
+    position: relative;
+}
+
+.chat-header { 
+    padding: 20px 25px; 
+    background: #fff; 
+    border-bottom: 1px solid #eaeaea; 
+    display: flex; 
+    align-items: center; 
+    z-index: 10;
+}
+
+.chat-header h2 { 
+    font-size: 1.2rem; 
+    color: #1c1e21; 
+    font-weight: 600; 
+}
+
+/* --- BURBUJAS DE MENSAJE --- */
+.chat-messages { 
+    flex: 1; 
+    padding: 30px; 
+    overflow-y: auto; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 15px; 
+}
+
+.message { 
+    background: #fff; 
+    padding: 12px 18px; 
+    border-radius: 0 18px 18px 18px; 
+    max-width: 60%; 
+    align-self: flex-start; 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+    position: relative; 
+}
+
+.message.my-message { 
+    background: #0084ff; 
+    color: #fff; 
+    border-radius: 18px 0 18px 18px; 
+    align-self: flex-end; 
+}
+
+.message .meta { 
+    font-size: 0.75rem; 
+    color: #8d949e; 
+    margin-bottom: 6px; 
+    font-weight: 600; 
+    display: flex; 
+    justify-content: space-between; 
+    gap: 15px; 
+}
+
+.message.my-message .meta { color: #bfe0ff; }
+.message .text { font-size: 0.95rem; line-height: 1.4; margin: 0; }
+
+/* --- FORMULARIO PARA ESCRIBIR --- */
+.chat-form { 
+    padding: 15px 25px; 
+    background: #fff; 
+    display: flex; 
+    gap: 15px; 
+    align-items: center; 
+    border-top: 1px solid #eaeaea;
+}
+
+.chat-form input[type="text"] { 
+    flex: 1; 
+    padding: 14px 20px; 
+    border-radius: 24px; 
+    border: none; 
+    outline: none; 
+    background: #f0f2f5; 
+    font-size: 0.95rem; 
+    transition: 0.2s;
+}
+
+.chat-form input[type="text"]:focus { background: #e4e6eb; }
+
+.btn-icon { 
+    background: transparent; 
+    border: none; 
+    font-size: 1.4rem; 
+    color: #606770; 
+    cursor: pointer; 
+    padding: 8px; 
+    transition: 0.2s; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-icon:hover { color: #0084ff; }
+
+/* Botón circular de enviar */
+.chat-form .btn-primary { 
+    border-radius: 50%; 
+    width: 45px; 
+    height: 45px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 0; 
+    box-shadow: 0 4px 10px rgba(0, 132, 255, 0.2);
+}
+
+
+/* --- PANEL DE EMOJIS --- */
+.emoji-container { position: relative; }
+.emoji-picker {
+    position: absolute;
+    bottom: 50px;
+    left: 0;
+    background: white;
+    border: 1px solid #eaeaea;
+    border-radius: 8px;
+    padding: 10px;
+    display: none; /* Oculto por defecto */
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    z-index: 100;
+}
+.emoji-item {
+    cursor: pointer;
+    font-size: 1.4rem;
+    padding: 5px;
     text-align: center;
-    margin-top: 10px;
-    font-size: 14px;
+    transition: transform 0.2s;
 }
-.success-message {
-    color: green;
-    text-align: center;
-    margin-top: 10px;
-    font-size: 14px;
-}
-
+.emoji-item:hover { transform: scale(1.3); }
