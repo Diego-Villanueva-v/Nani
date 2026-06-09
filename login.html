@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="registro-container">
+    <h2>Iniciar Sesión</h2>
+    <form id="loginForm">
+        
+        <div class="form-group">
+            <label for="loginEmail">Correo electrónico</label>
+            <div class="input-wrapper">
+                <input type="email" id="loginEmail" placeholder="ejemplo@correo.com" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="loginPassword">Contraseña</label>
+            <div class="input-wrapper">
+                <input type="password" id="loginPassword" placeholder="Tu contraseña" required>
+            </div>
+        </div>
+
+        <button type="submit" id="loginBtn">Ingresar</button>
+        <div id="loginMensaje" style="text-align: center; margin-top: 15px; font-weight: bold;"></div>
+        
+        <div style="text-align: center; margin-top: 15px;">
+            <a href="index.html" style="color: #007bff; text-decoration: none; font-size: 14px;">¿No tienes cuenta? Regístrate aquí</a>
+        </div>
+    </form>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  // IMPORTANTE: Reemplaza esto con los datos de tu proyecto de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
+  authDomain: "gen-lang-client-0867834675.firebaseapp.com",
+  projectId: "gen-lang-client-0867834675",
+  storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
+  messagingSenderId: "751363702976",
+  appId: "1:751363702976:web:3568444232a9343a136d25",
+  measurementId: "G-NRST14BV45"
+};
+
+  const app = initializeApp(firebaseConfig);
+  window.auth = getAuth(app);
+  window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+</script>
+<script src="login.js"></script>
+</body>
+</html>

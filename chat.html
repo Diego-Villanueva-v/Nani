@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat en Tiempo Real - UCSC</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+
+<div class="chat-layout">
+    <aside class="chat-sidebar">
+        <h3><i class="fas fa-comments"></i> UCSC Chat</h3>
+        <p id="currentUserDisplay">Usuario: Cargando...</p>
+        
+        <div class="room-selector">
+            <h4>Salas Temáticas</h4>
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <select id="roomSelect" style="flex: 1; padding: 5px; border-radius: 4px;"></select>
+                <button id="deleteRoomBtn" class="btn-danger" title="Eliminar sala actual"><i class="fas fa-trash"></i></button>
+            </div>
+            <button id="joinRoomBtn" class="btn-primary" style="width: 100%; margin-bottom: 10px;">Unirse a la sala</button>
+            
+            <div class="create-room" style="display: flex; gap: 5px; border-top: 1px solid #455a64; padding-top: 10px;">
+                <input type="text" id="newRoomInput" placeholder="Nombre nueva sala..." style="flex: 1; padding: 5px; border-radius: 4px; outline: none; border: none;">
+                <button id="createRoomBtn" class="btn-primary" title="Crear Sala"><i class="fas fa-plus"></i></button>
+            </div>
+        </div>
+
+        <div class="search-history">
+            <h4>Buscar en Historial</h4>
+            <input type="text" id="searchInput" placeholder="Buscar mensajes...">
+        </div>
+
+        <button id="logoutBtn" class="btn-danger"><i class="fas fa-sign-out-alt"></i> Salir</button>
+    </aside>
+
+    <main class="chat-main">
+        <header class="chat-header">
+            <h2 id="roomTitle">Sala: General</h2>
+        </header>
+
+        <div class="chat-messages" id="chatMessages">
+            </div>
+
+    <form id="chatForm" class="chat-form">
+            <div class="emoji-container">
+                <button type="button" id="emojiBtn" class="btn-icon">😀</button>
+                <div id="emojiPicker" class="emoji-picker">
+                    <span class="emoji-item">😀</span><span class="emoji-item">😂</span><span class="emoji-item">🥺</span><span class="emoji-item">😎</span><span class="emoji-item">😍</span>
+                    <span class="emoji-item">👍</span><span class="emoji-item">❤️</span><span class="emoji-item">🔥</span><span class="emoji-item">🎉</span><span class="emoji-item">✨</span>
+                    <span class="emoji-item">😭</span><span class="emoji-item">🙏</span><span class="emoji-item">😅</span><span class="emoji-item">🤔</span><span class="emoji-item">🥰</span>
+                </div>
+            </div>
+            
+            <input type="file" id="fileInput" style="display: none;">
+            <label for="fileInput" class="btn-icon" style="cursor: pointer;"><i class="fas fa-paperclip"></i></label>
+            
+            <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." required autocomplete="off">
+            <button type="submit" class="btn-primary"><i class="fas fa-paper-plane"></i></button>
+        </form>
+
+<audio id="notificationSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // Reemplaza con tus claves reales
+ const firebaseConfig = {
+  apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
+  authDomain: "gen-lang-client-0867834675.firebaseapp.com",
+  projectId: "gen-lang-client-0867834675",
+  storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
+  messagingSenderId: "751363702976",
+  appId: "1:751363702976:web:3568444232a9343a136d25",
+  measurementId: "G-NRST14BV45"
+};
+
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Exponer a global para chat.js
+  window.auth = auth;
+  window.db = db;
+  window.doc = doc;
+  window.getDoc = getDoc;
+  window.signOut = signOut;
+
+  // Proteger la ruta: si no hay sesión, al login
+  onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+          window.location.href = 'login.html';
+      } else {
+          // Obtener nombre de usuario de Firestore
+          const docRef = doc(db, "usuarios", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+              window.currentUsername = docSnap.data().username;
+              document.getElementById('currentUserDisplay').textContent = 'Usuario: ' + window.currentUsername;
+          } else {
+              window.currentUsername = user.email.split('@')[0];
+          }
+          
+          // Disparar evento para iniciar Socket.io
+          const event = new Event('userReady');
+          document.dispatchEvent(event);
+      }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+      signOut(auth).then(() => {
+          window.location.href = 'login.html';
+      });
+  });
+</script>
+<script src="chat.js"></script>
+</body>
+</html>
