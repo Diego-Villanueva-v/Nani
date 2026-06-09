@@ -1,6 +1,6 @@
 document.addEventListener('userReady', () => {
     // IMPORTANTE: Asegúrate de que el puerto sea el que corre en tu terminal (8000)
-    const socket = io('https://tu-url-de-railway-aqui.up.railway.app');
+    const socket = io('chat-project-production-b900.up.railway.app');
     
     const chatForm = document.getElementById('chatForm');
     const messageInput = document.getElementById('messageInput');
