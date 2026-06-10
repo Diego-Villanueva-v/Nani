@@ -16,12 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmPassword: document.getElementById('confirmPasswordError')
     };
 
-    const validState = {
-        username: false,
-        email: false,
-        password: false,
-        confirmPassword: false
-    };
+    const validState = { username: false, email: false, password: false, confirmPassword: false };
 
     const regex = {
         username: /^[a-zA-Z0-9]{6,}$/, 
@@ -32,8 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const setValid = (field) => {
         inputs[field].classList.remove('invalid');
         inputs[field].classList.add('valid');
-        const icon = inputs[field].nextElementSibling;
-        icon.className = 'icon fas fa-check-circle valid-icon';
+        inputs[field].nextElementSibling.className = 'icon fas fa-check-circle valid-icon';
         validState[field] = true;
         checkFormValidity();
     };
@@ -41,8 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const setInvalid = (field, message) => {
         inputs[field].classList.remove('valid');
         inputs[field].classList.add('invalid');
-        const icon = inputs[field].nextElementSibling;
-        icon.className = 'icon fas fa-times-circle invalid-icon';
+        inputs[field].nextElementSibling.className = 'icon fas fa-times-circle invalid-icon';
         errors[field].textContent = message;
         validState[field] = false;
         checkFormValidity();
@@ -50,51 +43,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inputs.username.addEventListener('input', () => {
         errors.username.textContent = '';
-        if (!regex.username.test(inputs.username.value)) {
-            setInvalid('username', 'Debe tener al menos 6 caracteres y sin símbolos.');
-        } else {
-            setValid('username');
-        }
+        !regex.username.test(inputs.username.value) ? setInvalid('username', 'Mínimo 6 caracteres sin símbolos.') : setValid('username');
     });
 
     inputs.email.addEventListener('input', () => {
         errors.email.textContent = '';
-        if (!regex.email.test(inputs.email.value)) {
-            setInvalid('email', 'Ingrese un correo electrónico válido.');
-        } else {
-            setValid('email');
-        }
+        !regex.email.test(inputs.email.value) ? setInvalid('email', 'Ingrese un correo válido.') : setValid('email');
     });
 
     inputs.password.addEventListener('input', () => {
         errors.password.textContent = '';
-        if (!regex.password.test(inputs.password.value)) {
-            setInvalid('password', 'Mínimo 8 caracteres, 1 mayúscula, 1 minúscula y 1 número.');
-        } else {
-            setValid('password');
-        }
-        if (inputs.confirmPassword.value.length > 0) {
-            validateConfirmPassword();
-        }
+        !regex.password.test(inputs.password.value) ? setInvalid('password', 'Mínimo 8 caracteres, 1 mayúscula, 1 minúscula y 1 número.') : setValid('password');
+        if (inputs.confirmPassword.value.length > 0) validateConfirmPassword();
     });
 
     const validateConfirmPassword = () => {
         errors.confirmPassword.textContent = '';
-        if (inputs.confirmPassword.value !== inputs.password.value || inputs.confirmPassword.value === '') {
-            setInvalid('confirmPassword', 'Las contraseñas no coinciden.');
-        } else {
-            setValid('confirmPassword');
-        }
+        (inputs.confirmPassword.value !== inputs.password.value || inputs.confirmPassword.value === '') ? setInvalid('confirmPassword', 'Las contraseñas no coinciden.') : setValid('confirmPassword');
     };
     
     inputs.confirmPassword.addEventListener('input', validateConfirmPassword);
 
     const checkFormValidity = () => {
-        if (validState.username && validState.email && validState.password && validState.confirmPassword) {
-            btnSubmit.disabled = false;
-        } else {
-            btnSubmit.disabled = true;
-        }
+        btnSubmit.disabled = !(validState.username && validState.email && validState.password && validState.confirmPassword);
     };
 
     form.addEventListener('submit', async (e) => {
@@ -103,46 +74,39 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btnSubmit.disabled) {
             btnSubmit.disabled = true;
             btnSubmit.textContent = 'Registrando...';
+            const mensajeFinal = document.getElementById('mensajeFinal');
 
             try {
-                const userCredential = await window.createUserWithEmailAndPassword(
-                    window.auth, 
-                    inputs.email.value, 
-                    inputs.password.value
-                );
-                
+                // 1. Crear usuario en Auth
+                const userCredential = await window.createUserWithEmailAndPassword(window.auth, inputs.email.value, inputs.password.value);
                 const user = userCredential.user;
 
+                // 2. Guardar en Firestore
                 await window.setDoc(window.doc(window.db, "usuarios", user.uid), {
                     username: inputs.username.value,
                     email: inputs.email.value,
                     fechaRegistro: new Date()
                 });
 
-                document.getElementById('mensajeFinal').textContent = '¡Registro exitoso! Ya puedes iniciar sesión.';
-                document.getElementById('mensajeFinal').style.color = 'green';
+                mensajeFinal.textContent = '¡Registro exitoso! Ya puedes iniciar sesión.';
+                mensajeFinal.style.color = 'green';
                 form.reset();
-                
-                Object.keys(inputs).forEach(key => {
-                    inputs[key].classList.remove('valid', 'invalid');
-                    inputs[key].nextElementSibling.className = 'icon fas';
-                    errors[key].textContent = '';
-                    validState[key] = false;
-                });
-
-                setTimeout(() => {
-                    window.location.href = 'login.html';
-                }, 2000);
+                setTimeout(() => { window.location.href = 'login.html'; }, 2000);
 
             } catch (error) {
                 console.error("Error al registrar: ", error);
-                document.getElementById('mensajeFinal').textContent = 'El correo ya está en uso o hubo un error.';
-                document.getElementById('mensajeFinal').style.color = 'red';
-                btnSubmit.disabled = false;
-            } finally {
-                if(btnSubmit.disabled) {
-                    btnSubmit.textContent = 'Registrarse';
+                mensajeFinal.style.color = 'red';
+                
+                // Manejo de errores exactos
+                if (error.code === 'auth/email-already-in-use') {
+                    mensajeFinal.textContent = 'Este correo ya está registrado. Intenta iniciar sesión.';
+                } else if (error.code === 'auth/invalid-email') {
+                    mensajeFinal.textContent = 'El formato del correo es inválido.';
+                } else {
+                    mensajeFinal.textContent = 'Hubo un error al registrar. Intenta de nuevo.';
                 }
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = 'Registrarse';
             }
         }
     });

@@ -3,84 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro Avanzado</title>
+    <title>Nani? - Conectar</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
 <div class="registro-container">
-    <h2>Crear Cuenta</h2>
-    <form id="registroForm">
+    <div class="brand-header">
+        <h2>Bienvenido a Nani? <i class="fas fa-terminal" style="color: #2f81f7;"></i></h2>
+        <p>Conectate y empieza a chatear!</p>
+    </div>
+    
+    <form id="loginForm">
+        <div class="form-group">
+            <label for="loginEmail">Correo electrónico</label>
+            <div class="input-wrapper">
+                <input type="email" id="loginEmail" placeholder="ejemplo@correo.com" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="loginPassword">Contraseña</label>
+            <div class="input-wrapper">
+                <input type="password" id="loginPassword" placeholder="Tu contraseña" required>
+            </div>
+        </div>
+
+        <div style="text-align: right; margin-bottom: 20px;">
+            <a href="#" id="forgotPasswordBtn" class="link-text small-text">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <button type="submit" id="loginBtn" class="btn-primary">Ingresar al sistema</button>
         
-        <div class="form-group">
-            <label for="username">Nombre de usuario</label>
-            <div class="input-wrapper">
-                <input type="text" id="username" placeholder="Mínimo 6 caracteres, sin símbolos">
-                <i class="icon fas"></i>
-            </div>
-            <div id="usernameError" class="error-message"></div>
-        </div>
-
-        <div class="form-group">
-            <label for="email">Correo electrónico</label>
-            <div class="input-wrapper">
-                <input type="email" id="email" placeholder="ejemplo@correo.com">
-                <i class="icon fas"></i>
-            </div>
-            <div id="emailError" class="error-message"></div>
-        </div>
-
-        <div class="form-group">
-            <label for="password">Contraseña</label>
-            <div class="input-wrapper">
-                <input type="password" id="password" placeholder="Mín 8 carac., 1 Mayús., 1 Minús., 1 Núm.">
-                <i class="icon fas"></i>
-            </div>
-            <div id="passwordError" class="error-message"></div>
-        </div>
-
-        <div class="form-group">
-            <label for="confirmPassword">Confirmar contraseña</label>
-            <div class="input-wrapper">
-                <input type="password" id="confirmPassword" placeholder="Repite tu contraseña">
-                <i class="icon fas"></i>
-            </div>
-            <div id="confirmPasswordError" class="error-message"></div>
-        </div>
-
-        <button type="submit" id="submitBtn" disabled>Registrarse</button>
-        <div id="mensajeFinal" style="text-align: center; margin-top: 15px; font-weight: bold;"></div>
+        <div class="divider"><span>O ingresa con</span></div>
         
-        <div style="text-align: center; margin-top: 15px;">
-            <a href="login.html" style="color: #007bff; text-decoration: none; font-size: 14px;">¿Ya tienes cuenta? Inicia sesión aquí</a>
+        <button type="button" id="googleLoginBtn" class="btn-google">
+            <img src="https://cdn-icons-png.flaticon.com/512/3002/300221.png" alt="Google"> Continuar con Google
+        </button>
+
+        <div id="loginMensaje" style="text-align: center; margin-top: 15px; font-weight: bold; font-size: 0.9rem;"></div>
+        
+        <div style="text-align: center; margin-top: 25px;">
+            <span style="color: #8b949e; font-size: 0.9rem;">¿No tienes cuenta?</span> 
+            <a href="registro.html" class="link-text">Regístrate aquí</a>
         </div>
     </form>
 </div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // IMPORTANTE: Reemplaza esto con los datos de tu proyecto de Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
-  authDomain: "gen-lang-client-0867834675.firebaseapp.com",
-  projectId: "gen-lang-client-0867834675",
-  storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
-  messagingSenderId: "751363702976",
-  appId: "1:751363702976:web:3568444232a9343a136d25",
-  measurementId: "G-NRST14BV45"
-};
+  const firebaseConfig = {
+      apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
+      authDomain: "gen-lang-client-0867834675.firebaseapp.com",
+      projectId: "gen-lang-client-0867834675",
+      storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
+      messagingSenderId: "751363702976",
+      appId: "1:751363702976:web:3568444232a9343a136d25"
+  };
 
   const app = initializeApp(firebaseConfig);
   window.auth = getAuth(app);
   window.db = getFirestore(app);
-  window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+  window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+  window.GoogleAuthProvider = GoogleAuthProvider;
+  window.signInWithPopup = signInWithPopup;
+  window.sendPasswordResetEmail = sendPasswordResetEmail;
   window.doc = doc;
   window.setDoc = setDoc;
+  window.getDoc = getDoc;
 </script>
-<script src="script.js"></script>
+<script src="login.js"></script>
 </body>
 </html>

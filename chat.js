@@ -1,25 +1,29 @@
 document.addEventListener('userReady', () => {
-    const socket = io('https://tu-proyecto-railway.up.railway.app'); // RECUERDA PONER TU URL AQUÍ
+    // IMPORTANTE: URL de tu servidor Railway
+    const socket = io('https://tu-proyecto-railway.up.railway.app'); 
 
     const chatMessages = document.getElementById('chatMessages');
-    const roomSelect = document.getElementById('roomSelect');
-    const roomTitle = document.getElementById('roomTitle');
     const messageInput = document.getElementById('messageInput');
-    const roomUsers = document.getElementById('roomUsers');
-    const globalUsers = document.getElementById('globalUsers');
+    const roomTitle = document.getElementById('roomTitle');
+    const roomSelect = document.getElementById('roomSelect');
     
     let currentRoom = 'General';
-    
-    // --- PERFIL Y FONDOS ---
-    let userColor = localStorage.getItem('chatUserColor') || '#0084ff';
+    let replyingTo = null; 
+    let isRecording = false;
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // --- CARGAR PERFIL ---
+    let userColor = localStorage.getItem('chatUserColor') || '#2f81f7';
     let userAvatar = localStorage.getItem('chatUserAvatar') || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
     let chatBg = localStorage.getItem('chatBgLocal') || '';
     
-    if (chatBg) chatMessages.style.backgroundImage = `url(${chatBg})`;
+    document.getElementById('myMiniAvatar').src = userAvatar;
     document.getElementById('avatarPreview').src = userAvatar;
+    if (chatBg) chatMessages.style.backgroundImage = `url(${chatBg})`;
 
-    // Compresor de imágenes genérico
-    const compressImage = (file, maxWidth, quality, callback) => {
+    // Compresor de Imágenes Universal
+    const compressImage = (file, maxWidth, callback) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = (e) => {
@@ -32,34 +36,30 @@ document.addEventListener('userReady', () => {
                 canvas.height = img.height * scale;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                callback(canvas.toDataURL('image/jpeg', quality));
+                callback(canvas.toDataURL('image/jpeg', 0.8));
             };
         };
     };
 
-    // Modal de configuración
+    // --- MODAL Y CONFIGURACIÓN ---
     document.getElementById('configBtn').addEventListener('click', () => {
         document.getElementById('colorPicker').value = userColor;
-        document.getElementById('configModal').style.display = 'flex';
+        document.getElementById('configModal').classList.add('active');
     });
 
     document.getElementById('closeConfigBtn').addEventListener('click', () => {
-        document.getElementById('configModal').style.display = 'none';
+        document.getElementById('configModal').classList.remove('active');
     });
 
-    // Vista previa de Avatar
     document.getElementById('avatarInput').addEventListener('change', (e) => {
-        if(e.target.files[0]) compressImage(e.target.files[0], 150, 0.7, (b64) => {
+        if(e.target.files[0]) compressImage(e.target.files[0], 250, (b64) => {
             document.getElementById('avatarPreview').src = b64;
             userAvatar = b64;
         });
     });
 
-    // Vista previa de Fondo
     document.getElementById('bgLocalInput').addEventListener('change', (e) => {
-        if(e.target.files[0]) compressImage(e.target.files[0], 800, 0.5, (b64) => {
-            chatBg = b64;
-        });
+        if(e.target.files[0]) compressImage(e.target.files[0], 1200, (b64) => chatBg = b64);
     });
 
     document.getElementById('saveConfigBtn').addEventListener('click', () => {
@@ -68,36 +68,92 @@ document.addEventListener('userReady', () => {
         localStorage.setItem('chatUserAvatar', userAvatar);
         localStorage.setItem('chatBgLocal', chatBg);
         
+        document.getElementById('myMiniAvatar').src = userAvatar;
         chatMessages.style.backgroundImage = chatBg ? `url(${chatBg})` : 'none';
-        chatMessages.style.backgroundSize = 'cover';
-        chatMessages.style.backgroundPosition = 'center';
         
         socket.emit('joinRoom', { username: window.currentUsername, room: currentRoom, color: userColor, avatar: userAvatar });
-        document.getElementById('configModal').style.display = 'none';
+        document.getElementById('configModal').classList.remove('active');
     });
 
-    // --- CONEXIÓN ---
+    // --- PORTAPAPELES (CTRL+V) ---
+    document.addEventListener('paste', (e) => {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                compressImage(blob, 800, (b64) => {
+                    enviarMensaje(b64, 'image');
+                });
+            }
+        }
+    });
+
+    // --- MENSAJES GUARDADOS ---
+    document.getElementById('savedMessagesBtn').addEventListener('click', () => {
+        currentRoom = `${window.currentUsername}_saved`;
+        roomTitle.innerHTML = `<i class="fas fa-bookmark" style="color:var(--accent);"></i> Mis Mensajes Guardados`;
+        chatMessages.innerHTML = '';
+        socket.emit('joinRoom', { username: window.currentUsername, room: currentRoom, color: userColor, avatar: userAvatar });
+    });
+
+    // --- RESPONDER MENSAJES ---
+    window.setReply = (username, text) => {
+        replyingTo = { username, text };
+        document.getElementById('replyName').textContent = username;
+        document.getElementById('replyText').textContent = text.startsWith('data:image') || text.startsWith('http') ? '📷 Imagen / GIF' : text;
+        document.getElementById('replyPreview').classList.add('active');
+        messageInput.focus();
+    };
+
+    document.getElementById('cancelReplyBtn').addEventListener('click', () => {
+        replyingTo = null;
+        document.getElementById('replyPreview').classList.remove('active');
+    });
+
+    // --- BUSCADOR DE GIFS ---
+    document.getElementById('gifBtn').addEventListener('click', () => {
+        document.getElementById('gifPicker').classList.toggle('active');
+        document.getElementById('emojiPicker').classList.remove('active');
+    });
+
+    document.getElementById('gifSearch').addEventListener('keypress', async (e) => {
+        if(e.key === 'Enter') {
+            e.preventDefault();
+            const term = e.target.value;
+            // API Demo de Giphy
+            const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${term}&limit=8`);
+            const data = await res.json();
+            const results = document.getElementById('gifResults');
+            results.innerHTML = '';
+            data.data.forEach(gif => {
+                const img = document.createElement('img');
+                img.src = gif.images.fixed_height_small.url;
+                img.onclick = () => {
+                    enviarMensaje(gif.images.fixed_height.url, 'image');
+                    document.getElementById('gifPicker').classList.remove('active');
+                };
+                results.appendChild(img);
+            });
+        }
+    });
+
+    // --- CONEXIÓN Y SALAS ---
     socket.emit('joinRoom', { username: window.currentUsername, room: currentRoom, color: userColor, avatar: userAvatar });
 
-    // --- CHAT PRIVADO (DMs) ---
     window.openDM = (targetUser) => {
-        if (targetUser === window.currentUsername) return; // No hablar contigo mismo
-        // Crear un nombre de sala único basado en orden alfabético para que ambos entren a la misma
-        const dmRoom = [window.currentUsername, targetUser].sort().join('_');
-        currentRoom = dmRoom;
-        roomTitle.innerHTML = `<i class="fas fa-lock"></i> Chat Privado: ${targetUser}`;
+        if (targetUser === window.currentUsername) return;
+        currentRoom = [window.currentUsername, targetUser].sort().join('_');
+        roomTitle.innerHTML = `<i class="fas fa-lock" style="color:var(--accent);"></i> Chat Privado: ${targetUser}`;
         chatMessages.innerHTML = ''; 
         socket.emit('joinRoom', { username: window.currentUsername, room: currentRoom, color: userColor, avatar: userAvatar });
     };
 
-    // --- SALAS PÚBLICAS ---
     socket.on('updateRooms', (rooms) => {
         roomSelect.innerHTML = '';
         rooms.forEach(room => {
-            if(!room.includes('_')) { // Filtrar salas privadas
+            if(!room.includes('_')) { 
                 const option = document.createElement('option');
-                option.value = room;
-                option.textContent = room;
+                option.value = room; option.textContent = room;
                 if(room === currentRoom) option.selected = true;
                 roomSelect.appendChild(option);
             }
@@ -111,64 +167,142 @@ document.addEventListener('userReady', () => {
         socket.emit('joinRoom', { username: window.currentUsername, room: currentRoom, color: userColor, avatar: userAvatar });
     });
 
-    // --- LISTA DE USUARIOS ---
+    document.getElementById('createRoomBtn').addEventListener('click', () => {
+        const newRoom = document.getElementById('newRoomInput').value.trim();
+        if(newRoom) {
+            socket.emit('createRoom', newRoom);
+            document.getElementById('newRoomInput').value = '';
+            setTimeout(() => { roomSelect.value = newRoom; document.getElementById('joinRoomBtn').click(); }, 300);
+        }
+    });
+
+    // --- LISTAS DE USUARIOS ---
     socket.on('updateUserList', (users) => {
-        roomUsers.innerHTML = users.map(u => `
-            <li style="display:flex; align-items:center; margin-bottom:8px;">
-                <img src="${u.avatar}" style="width:25px; height:25px; border-radius:50%; margin-right:8px; object-fit:cover;">
-                <span style="color:${u.color}; font-weight:bold;">${u.username}</span>
-            </li>`).join('');
+        document.getElementById('roomUsers').innerHTML = users.map(u => `
+            <li><img src="${u.avatar}"> <span style="color:${u.color}; font-weight:600;">${u.username}</span></li>
+        `).join('');
     });
 
     socket.on('updateGlobalUsers', (users) => {
-        globalUsers.innerHTML = users.map(u => `
-            <li onclick="openDM('${u.username}')" style="cursor:pointer; display:flex; align-items:center; margin-bottom:8px; padding:5px; border-radius:5px; transition:0.2s;" onmouseover="this.style.background='#e4e6eb'" onmouseout="this.style.background='transparent'" title="Enviar mensaje privado">
-                <img src="${u.avatar}" style="width:30px; height:30px; border-radius:50%; margin-right:8px; border:2px solid #28a745; object-fit:cover;">
-                <span><b>${u.username}</b> <br><small style="color:#888;">${u.room.includes('_') ? 'En Privado' : u.room}</small></span>
-            </li>`).join('');
+        document.getElementById('globalUsers').innerHTML = users.map(u => `
+            <li onclick="openDM('${u.username}')" class="global-user">
+                <div class="status-dot"></div>
+                <img src="${u.avatar}">
+                <div>
+                    <b style="color: #fff;">${u.username}</b> <br>
+                    <small style="color: var(--text-muted);">${u.room.includes('_') ? 'En Privado' : u.room}</small>
+                </div>
+            </li>
+        `).join('');
     });
 
-    // --- ENVÍO DE MENSAJES (Texto e Imágenes) ---
+    // --- ENVIAR MENSAJES ---
+    const enviarMensaje = (texto, tipo = 'text') => {
+        if (!texto) return;
+        socket.emit('chatMessage', {
+            username: window.currentUsername,
+            text: texto,
+            type: tipo,
+            room: currentRoom,
+            color: userColor,
+            avatar: userAvatar,
+            reply: replyingTo,
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        });
+        document.getElementById('cancelReplyBtn').click(); 
+    };
+
     document.getElementById('chatForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        const msg = document.getElementById('messageInput').value.trim();
-        if (!msg) return;
-
-        socket.emit('chatMessage', {
-            username: window.currentUsername, text: msg, room: currentRoom, color: userColor, avatar: userAvatar, time: new Date().toLocaleTimeString()
-        });
-
-        document.getElementById('messageInput').value = '';
+        enviarMensaje(messageInput.value.trim(), 'text');
+        messageInput.value = '';
     });
 
     document.getElementById('fileInput').addEventListener('change', (e) => {
-        if(e.target.files[0]) compressImage(e.target.files[0], 500, 0.6, (b64) => {
-            socket.emit('chatMessage', { username: window.currentUsername, text: b64, room: currentRoom, color: userColor, avatar: userAvatar, type: 'image', time: new Date().toLocaleTimeString() });
-        });
+        if(e.target.files[0]) compressImage(e.target.files[0], 800, (b64) => enviarMensaje(b64, 'image'));
     });
 
-    // --- RECIBIR MENSAJES ---
+    // --- GRABADORA DE AUDIO ---
+    const voiceBtn = document.getElementById('voiceBtn');
+    voiceBtn.addEventListener('click', async () => {
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = () => enviarMensaje(reader.result, 'audio');
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                voiceBtn.classList.add('recording');
+            } catch (err) { alert("Permite el micrófono para enviar audios."); }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            voiceBtn.classList.remove('recording');
+        }
+    });
+
+    // --- RENDERIZAR MENSAJES ---
     socket.on('message', (message) => {
         const div = document.createElement('div');
         const isMe = message.username === window.currentUsername;
         div.className = `message ${isMe ? 'my-message' : ''}`;
         
-        const nameColor = isMe ? '#bfe0ff' : (message.color || '#8d949e');
+        let replyHTML = '';
+        if (message.reply) {
+            replyHTML = `
+                <div class="quoted-message">
+                    <strong>${message.reply.username}</strong>
+                    <p>${message.reply.text.startsWith('data:image') || message.reply.text.startsWith('http') ? '📷 Imagen' : message.reply.text}</p>
+                </div>
+            `;
+        }
 
-        let content = message.type === 'image' 
-            ? `<img src="${message.text}" style="max-width: 100%; border-radius: 8px; margin-top: 5px;">` 
-            : `<p class="text">${message.text}</p>`;
+        let content = '';
+        if (message.type === 'image') content = `<img src="${message.text}" class="msg-image">`;
+        else if (message.type === 'audio') content = `<audio controls src="${message.text}" class="msg-audio"></audio>`;
+        else content = `<p class="text">${message.text}</p>`;
 
         div.innerHTML = `
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
-                <img src="${message.avatar}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;">
-                <p class="meta" style="color: ${nameColor}; font-weight: bold; margin:0;">
-                    ${message.username} <span style="font-size: 0.8em; font-weight: normal; color: #aaa;">${message.time}</span>
-                </p>
+            <div class="msg-header">
+                <img src="${message.avatar}" class="msg-avatar">
+                <span style="color: ${isMe ? '#fff' : message.color}; font-weight: bold;">${message.username}</span>
             </div>
+            ${replyHTML}
             ${content}
+            <div class="msg-footer">
+                <span class="time">${message.time}</span>
+                <button class="reply-btn" onclick="setReply('${message.username}', '${message.type === 'text' ? message.text.replace(/'/g, "\\'") : message.type}')"><i class="fas fa-reply"></i></button>
+            </div>
         `;
+        
+        div.addEventListener('dblclick', () => setReply(message.username, message.type === 'text' ? message.text : message.type));
+
         chatMessages.appendChild(div);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+        if(!isMe) document.getElementById('notificationSound').play().catch(()=>{});
+    });
+
+    // --- BUSCADOR EN CHAT ---
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('.message').forEach(msg => {
+            const text = msg.querySelector('.text')?.innerText.toLowerCase() || '';
+            msg.style.display = text.includes(term) ? 'block' : 'none';
+        });
+    });
+
+    // Emojis básicos
+    const emojis = ['😀','😂','🥺','😎','😍','👍','❤️','🔥','🎉','✨','😭','🙏','😅','🤔','🥰'];
+    document.getElementById('emojiPicker').innerHTML = emojis.map(e => `<span onclick="document.getElementById('messageInput').value += '${e}'">${e}</span>`).join('');
+    document.getElementById('emojiBtn').addEventListener('click', () => {
+        document.getElementById('emojiPicker').classList.toggle('active');
+        document.getElementById('gifPicker').classList.remove('active');
     });
 });
