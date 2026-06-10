@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nani? - Chat</title>
+  <title>Nani? - Chat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -172,7 +172,7 @@
                 <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje</button>
                 <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
             </div>
-            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro de Comentarios</h4>
+            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
                 <input type="text" id="dCommentText" placeholder="Escribe algo...">
@@ -228,7 +228,7 @@
         </div>
 
         <div class="settings-section" style="border: none; margin-bottom: 0; padding-bottom: 0;">
-            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Nani? V7.0</p>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Nani? Depurada V7.0</p>
             <a href="mailto:unknownlineof@gmail.com" class="btn-primary-outline" style="display: block; text-align: center; text-decoration: none; margin-bottom: 10px;"><i class="fas fa-envelope"></i> Soporte Técnico</a>
             <button id="logoutBtnCtx" class="btn-danger" style="width: 100%;"><i class="fas fa-power-off"></i> Cerrar Sesión</button>
         </div>
@@ -262,7 +262,7 @@
   onAuthStateChanged(window.auth, async (user) => {
       if (!user) { window.location.href = 'index.html'; } else {
           window.currentUserUid = user.uid;
-          window.currentUserEmail = user.email; // Clave para Super Admin
+          window.currentUserEmail = user.email;
           
           const docSnap = await getDoc(doc(window.db, "usuarios", user.uid));
           if (docSnap.exists()) {
@@ -273,9 +273,9 @@
       }
   });
 
-  // Evento de Logout asignado después de cargar el DOM
+  // Asegurar que el evento de logout se asigne al cargar el DOM
   document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('logoutBtnCtx').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
+    document.getElementById('logoutBtnCtx').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
   });
 </script>
 <script src="chat.js"></script>

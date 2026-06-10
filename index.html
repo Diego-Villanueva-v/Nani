@@ -11,71 +11,52 @@
 
 <div class="registro-container">
     <div class="brand-header">
-        <h2>Bienvenido a Nani? <i class="fas fa-terminal" style="color: #2f81f7;"></i></h2>
-        <p>Conectate y empieza a chatear!</p>
+        <div class="lobby-icon-container" style="margin-bottom: 10px;">
+            <i class="fas fa-meteor lobby-icon lobby-logo"></i>
+        </div>
+        <h2 style="font-size: 2.2rem; margin-top: 10px;">Bienvenido a Nani?</h2>
+        <p>Conéctate y empieza a chatear.</p>
     </div>
-    
+
     <form id="loginForm">
         <div class="form-group">
-            <label for="loginEmail">Correo electrónico</label>
+            <label>Correo Electrónico</label>
             <div class="input-wrapper">
-                <input type="email" id="loginEmail" placeholder="ejemplo@correo.com" required>
+                <i class="fas fa-envelope input-icon"></i>
+                <input type="email" id="loginEmail" placeholder="tu_correo@ejemplo.com" required>
             </div>
         </div>
-
         <div class="form-group">
-            <label for="loginPassword">Contraseña</label>
+            <label>Contraseña</label>
             <div class="input-wrapper">
-                <input type="password" id="loginPassword" placeholder="Tu contraseña" required>
+                <i class="fas fa-lock input-icon"></i>
+                <input type="password" id="loginPassword" placeholder="••••••••" required>
             </div>
         </div>
-
+        
         <div style="text-align: right; margin-bottom: 20px;">
-            <a href="#" id="forgotPasswordBtn" class="link-text small-text">¿Olvidaste tu contraseña?</a>
+            <a href="#" id="forgotPasswordBtn" class="link-text" style="font-size: 0.85rem;">¿Olvidaste tu contraseña?</a>
         </div>
 
-        <button type="submit" id="loginBtn" class="btn-primary">Ingresar al sistema</button>
+        <button type="submit" class="btn-primary">Iniciar Sesión</button>
         
-        <div class="divider"><span>O ingresa con</span></div>
-        
-        <button type="button" id="googleLoginBtn" class="btn-google">
-            <i class="fab fa-google" style="color: #4285F4; font-size: 1.2rem;"></i> Continuar con Google
-        </button>
-
-        <div id="loginMensaje" style="text-align: center; margin-top: 15px; font-weight: bold; font-size: 0.9rem;"></div>
-        
-        <div style="text-align: center; margin-top: 25px;">
-            <span style="color: #8b949e; font-size: 0.9rem;">¿No tienes cuenta?</span> 
-            <a href="registro.html" class="link-text">Regístrate aquí</a>
-        </div>
+        <div id="loginMensaje" style="text-align: center; margin-top: 15px; font-weight: 600; font-size: 0.9rem; min-height: 20px;"></div>
     </form>
+
+    <div class="divider">
+        <span>O ingresa con</span>
+    </div>
+
+    <button id="googleLogin" class="btn-google">
+        <i class="fab fa-google" style="color: #4285F4; font-size: 1.2rem;"></i>
+        Continuar con Google
+    </button>
+
+    <p style="text-align: center; margin-top: 25px; color: var(--text-muted);">
+        ¿No tienes cuenta? <a href="registro.html" class="link-text">Regístrate aquí</a>
+    </p>
 </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  const firebaseConfig = {
-      apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
-      authDomain: "gen-lang-client-0867834675.firebaseapp.com",
-      projectId: "gen-lang-client-0867834675",
-      storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
-      messagingSenderId: "751363702976",
-      appId: "1:751363702976:web:3568444232a9343a136d25"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  window.auth = getAuth(app);
-  window.db = getFirestore(app);
-  window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-  window.GoogleAuthProvider = GoogleAuthProvider;
-  window.signInWithPopup = signInWithPopup;
-  window.sendPasswordResetEmail = sendPasswordResetEmail;
-  window.doc = doc;
-  window.setDoc = setDoc;
-  window.getDoc = getDoc;
-</script>
-<script src="login.js"></script>
+<script type="module" src="login.js"></script>
 </body>
 </html>

@@ -32,24 +32,34 @@ document.addEventListener('userReady', () => {
     let useVibration = prefs.vibration !== false; 
     let useNotifs = prefs.notifications !== false;
 
-    // --- ONBOARDING MULTIPANTALLA ---
+    // --- REPARADO: ONBOARDING MULTIPANTALLA DE PURP ---
     if (!userAge || !userGender) {
+        // Asegurar que el modal esté activo
         document.getElementById('onboardingModal').classList.add('active');
+        // Fase 1 debe estar activa
+        document.getElementById('onboardStep1').classList.add('active');
+        document.getElementById('onboardStep2').classList.remove('active');
     }
     
-    let tempGender = '';
+    // Botón Siguiente (Edad -> Género)
     document.getElementById('nextOnboardBtn').addEventListener('click', () => {
-        if(document.getElementById('onboardAge').value) {
+        const ageInput = document.getElementById('onboardAge').value;
+        if(ageInput && ageInput > 12) {
             document.getElementById('onboardStep1').classList.remove('active');
             document.getElementById('onboardStep2').classList.add('active');
-        } else { alert("Por favor, ingresa tu edad para continuar."); }
+        } else {
+            alert("Por favor, ingresa una edad válida (Mínimo 13 años).");
+        }
     });
 
+    // Botón Atrás (Género -> Edad)
     document.getElementById('backOnboardBtn').addEventListener('click', () => {
         document.getElementById('onboardStep2').classList.remove('active');
         document.getElementById('onboardStep1').classList.add('active');
     });
 
+    // Selector de Género
+    let tempGender = '';
     document.querySelectorAll('.gender-btn').forEach(btn => {
         btn.addEventListener('click', () => { 
             document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active')); 
@@ -57,16 +67,23 @@ document.addEventListener('userReady', () => {
         });
     });
 
+    // Botón Finalizar (Guardar en Firebase)
     document.getElementById('finishOnboardBtn').addEventListener('click', async () => {
         const age = document.getElementById('onboardAge').value;
         if(age && tempGender) {
             userAge = age; userGender = tempGender;
             try {
+                // GUARDADO REAL EN FIREBASE
                 await window.setDoc(window.doc(window.db, "usuarios", window.currentUserUid), { age: userAge, gender: userGender }, { merge: true });
                 document.getElementById('onboardingModal').classList.remove('active'); 
                 sendUserData();
-            } catch(e) { console.error(e); alert("Error al guardar, intenta de nuevo.");}
-        } else { alert("Selecciona una opción para continuar."); }
+            } catch(e) {
+                console.error("Firebase Onboarding Error:", e);
+                alert("Ocurrió un error al guardar, por favor reintenta.");
+            }
+        } else {
+            alert("Por favor, selecciona tu género para continuar.");
+        }
     });
 
     // --- UTILIDADES ---
@@ -86,43 +103,59 @@ document.addEventListener('userReady', () => {
     document.getElementById('vibToggle').checked = useVibration; document.getElementById('notifToggle').checked = useNotifs;
     if (chatBg) document.getElementById('chatMessages').style.backgroundImage = `url('${chatBg}')`;
 
-    // --- NAVEGACIÓN BOTTOM NAV REPARADA ---
+    // --- REPARADO: LÓGICA DE NAVEGACIÓN BOTTOM NAV (A prueba de fallos) ---
     const switchAppView = (viewId) => {
-        // Remover activaciones
+        // console.log("Cambiando a vista:", viewId); // Debug
+        
+        // 1. Desactivar TODAS las vistas y botones
         document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         
-        // Activar la vista seleccionada
+        // 2. Activar la vista seleccionada
         const targetView = document.getElementById(viewId);
-        if(targetView) targetView.classList.add('active');
+        if(targetView) {
+            targetView.classList.add('active');
+        } else {
+            console.error("No se encontró la vista:", viewId);
+            document.getElementById('viewLobby').classList.add('active'); // Fail-safe al lobby
+        }
         
-        // Activar el botón correspondiente en el menú inferior
+        // 3. Activar el botón correspondiente en la Nav
         const navBtn = document.querySelector(`.nav-item[data-view="${viewId}"]`);
         if(navBtn) navBtn.classList.add('active');
+        
+        // 4. Si entramos al lobby, resetear selección de sala
+        if(viewId === 'viewLobby') {
+            socket.emit('joinRoom', { username: window.currentUsername, email: window.currentUserEmail, room: 'Lobby', color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, age: userAge, gender: userGender });
+            currentRoom = 'Lobby';
+        }
     };
 
-    document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
+    // Asignar listeners a los botones de navegación inferior
+    document.querySelectorAll('.bottom-nav .nav-item[data-view]').forEach(btn => {
         btn.addEventListener('click', () => switchAppView(btn.dataset.view));
     });
     
+    // Botón Perfil en la Nav
+    document.getElementById('navMyProfileBtn').addEventListener('click', () => window.openProfile(window.currentUsername));
+
+    // Botón Ajustes en la Nav (Solo abre el modal)
     document.getElementById('navSettingsBtn').addEventListener('click', () => {
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        document.getElementById('navSettingsBtn').classList.add('active');
         document.getElementById('settingsModal').classList.add('active');
     });
 
+    // Cerrar Ajustes (Resetear estado visual de la Nav)
     document.getElementById('closeConfigBtn').addEventListener('click', () => {
         document.getElementById('settingsModal').classList.remove('active');
-        // Reactivar el botón del nav actual basado en la vista activa
+        
+        // Determinar qué Nav Item debe quedar activo basado en la vista actual
         const currentActiveView = document.querySelector('.app-view.active');
         if(currentActiveView) {
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            const matchedNav = document.querySelector(`.nav-item[data-view="${currentActiveView.id}"]`);
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+            const matchedNav = document.querySelector(`.bottom-nav .nav-item[data-view="${currentActiveView.id}"]`);
             if(matchedNav) matchedNav.classList.add('active');
         }
     });
-
-    document.getElementById('navMyProfileBtn').addEventListener('click', () => window.openProfile(window.currentUsername));
 
     // --- TRANSICIONES DE SALAS ---
     const checkRoomAdmin = (roomName) => {
@@ -139,10 +172,13 @@ document.addEventListener('userReady', () => {
         sendUserData(); switchAppView('viewChat');
     };
 
-    document.getElementById('leaveRoomBtn').addEventListener('click', () => { currentRoom = 'Lobby'; sendUserData('Lobby'); switchAppView('viewLobby'); });
+    document.getElementById('leaveRoomBtn').addEventListener('click', () => { 
+        currentRoom = 'Lobby'; 
+        switchAppView('viewLobby'); 
+    });
+    
     socket.on('forceLeaveRoom', (dr) => { if(currentRoom === dr) { alert(`Sala eliminada.`); switchAppView('viewLobby'); } });
     document.getElementById('joinRoomBtn').addEventListener('click', () => enterRoom(selectedRoomToJoin, `Sala: ${selectedRoomToJoin}`));
-    document.getElementById('savedMessagesBtn').addEventListener('click', () => enterRoom(`${window.currentUsername}_saved`, `<i class="fas fa-bookmark" style="color:${userColor};"></i> Mis Guardados`));
     document.getElementById('deleteRoomBtn').addEventListener('click', () => { if(confirm(`¿Eliminar sala ${currentRoom}?`)) socket.emit('deleteRoom', { roomName: currentRoom, requesterUser: window.currentUsername, requesterEmail: window.currentUserEmail }); });
     socket.on('loadHistory', (history) => { const cm = document.getElementById('chatMessages'); cm.innerHTML = ''; history.forEach(msg => renderMessage(msg)); cm.scrollTop = cm.scrollHeight; });
 
@@ -167,15 +203,11 @@ document.addEventListener('userReady', () => {
         if(newRoom) { socket.emit('createRoom', { roomName: newRoom, creator: window.currentUsername }); document.getElementById('newRoomInput').value = ''; setTimeout(() => { selectedRoomToJoin = newRoom; enterRoom(newRoom, `Sala: ${newRoom}`); }, 300); }
     });
 
-    // --- GUARDAR CONFIGURACIÓN REPARADO ---
-    document.getElementById('bubbleOpacity').addEventListener('input', (e) => document.getElementById('opacityVal').textContent = `${Math.round(e.target.value * 100)}%`);
-    document.getElementById('avatarInput').addEventListener('change', (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 250, (b64) => { document.getElementById('avatarPreview').src = b64; userAvatar = b64; }); });
-    document.getElementById('bgLocalInput').addEventListener('change', (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 1200, (b64) => { chatBg = b64; document.getElementById('chatMessages').style.backgroundImage = `url('${chatBg}')`; }); });
-    document.getElementById('resetBgBtn').addEventListener('click', () => { chatBg = 'Nane.jpg'; document.getElementById('chatMessages').style.backgroundImage = `url('${chatBg}')`; });
-    
+    // --- REPARADO: GUARDAR CONFIGURACIÓN EN FIREBASE ---
     document.getElementById('saveConfigBtn').addEventListener('click', async () => {
-        const btn = document.getElementById('saveConfigBtn');
-        btn.textContent = 'Guardando...';
+        const saveBtn = document.getElementById('saveConfigBtn');
+        saveBtn.textContent = 'Guardando...';
+        saveBtn.disabled = true;
         
         userColor = document.getElementById('colorPicker').value; 
         userBubbleColor = document.getElementById('bubbleColorPicker').value; 
@@ -184,23 +216,30 @@ document.addEventListener('userReady', () => {
         useVibration = document.getElementById('vibToggle').checked; 
         useNotifs = document.getElementById('notifToggle').checked;
         
+        // Objeto unificado para preferencias
         const prefsToSave = { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, avatar: userAvatar, bgLocal: chatBg, stickers: myStickers, vibration: useVibration, notifications: useNotifs };
         
         try { 
+            // GUARDADO REAL EN FIREBASE DOC
             await window.setDoc(window.doc(window.db, "usuarios", window.currentUserUid), { preferences: prefsToSave }, { merge: true }); 
+            
+            // Actualización visual inmediata de mis burbujas en el chat
+            document.querySelectorAll('.my-message').forEach(msg => {
+                if (!msg.classList.contains('type-image')) msg.style.background = hexToRgba(userBubbleColor, userBubbleOpacity);
+                const ns = msg.querySelector('.msg-header span'); if(ns) ns.style.color = userColor;
+            });
+            
+            sendUserData(); // Informar al servidor de los cambios
+            saveBtn.textContent = '¡Guardado!';
+            vibrate(100);
+            setTimeout(() => { document.getElementById('closeConfigBtn').click(); saveBtn.disabled = false; saveBtn.textContent = 'Guardar'; }, 1000);
+            
         } catch(e) {
-            console.error("Error Firebase:", e);
+            console.error("Firebase Sync Error:", e);
+            alert("Error al guardar en la nube. Verifica tu conexión.");
+            saveBtn.textContent = 'Error';
+            saveBtn.disabled = false;
         }
-        
-        document.querySelectorAll('.my-message').forEach(msg => {
-            if (!msg.classList.contains('type-image')) msg.style.background = hexToRgba(userBubbleColor, userBubbleOpacity);
-            const ns = msg.querySelector('.msg-header span'); if(ns) ns.style.color = userColor;
-        });
-        
-        sendUserData(); 
-        document.getElementById('myMiniAvatar').src = userAvatar; 
-        btn.textContent = 'Guardar'; 
-        document.getElementById('closeConfigBtn').click(); // Reutiliza la función para resetear el Nav
     });
 
     // --- MENÚ UNIFICADO ADJUNTOS ---
@@ -208,15 +247,15 @@ document.addEventListener('userReady', () => {
     document.getElementById('toggleUnifiedPickerBtn').addEventListener('click', () => { unifiedPicker.classList.toggle('active'); if(unifiedPicker.classList.contains('active')) updateStickerMenu(); });
     document.querySelectorAll('.picker-tab').forEach(tab => { tab.addEventListener('click', (e) => { e.preventDefault(); document.querySelectorAll('.picker-tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.picker-content').forEach(c => c.classList.remove('active')); tab.classList.add('active'); document.getElementById(tab.dataset.target).classList.add('active'); }); });
 
-    const updateStickerMenu = () => { document.getElementById('stickerResults').innerHTML = myStickers.map(url => `<img src="${url}" onclick="sendSticker('${url}')">`).join('') || '<p style="grid-column:span 2; text-align:center; color:var(--text-muted); font-size:0.8rem;">Sin stickers. Usa click derecho / manten presionada una imagen en el chat.</p>'; };
+    const updateStickerMenu = () => { document.getElementById('stickerResults').innerHTML = myStickers.map(url => `<img src="${url}" onclick="sendSticker('${url}')">`).join('') || '<p style="grid-column:span 2; text-align:center; color:var(--text-muted); font-size:0.8rem;">Sin stickers. Usa click derecho o manten presionada una imagen en el chat.</p>'; };
     window.sendSticker = (url) => { enviarMensaje(url, 'image'); unifiedPicker.classList.remove('active'); };
 
-    const emojis = ['😀','😂','🥺','😎','😍','👍','❤️','🔥','🎉','✨','😭','🙏','😅','🤔','🥰','👽','👻','🤖','💩','💀','💅','💃','👀','🧠','👅','🚀','🛸','🎨','🎮','🏆','🍕','🍔','🍟','☕','🍷','⚽','🏀','🎸','📱','💻','💡','💸','💣','🔫','🛁','🚽','🔥','💯'];
+    const emojis = ['😀','😂','🥺','😎','😍','👍','❤️','🔥','🎉','✨','😭','🙏','😅','🤔','🥰','👽','👻','🤖','💩','💀','💅','💃','👀','🧠','👅','🚀','🛸','🎨','🎮','🏆','🍕','🍔','🍟','☕','🍷','⚽','🏀','🎸','📱','💻','💡','💸','💣','🔫','🛁','🚽','🔥','💯','💜','✨','💀'];
     document.getElementById('emojiPickerContent').innerHTML = emojis.map(e => `<span onclick="document.getElementById('messageInput').value += '${e}'">${e}</span>`).join('');
     
     document.getElementById('doGifSearchBtn').addEventListener('click', async () => {
         const term = document.getElementById('gifSearch').value.trim(); if(!term) return;
-        const resDiv = document.getElementById('gifResults'); resDiv.innerHTML = '<p>...</p>';
+        const resDiv = document.getElementById('gifResults'); resDiv.innerHTML = '<p>Buscando...</p>';
         try {
             const res = await fetch(`https://g.tenor.com/v1/search?q=${term}&key=LIVDSRZULELA&limit=12`); const data = await res.json();
             resDiv.innerHTML = data.results.length === 0 ? '<p>No hay resultados.</p>' : '';
@@ -225,9 +264,8 @@ document.addEventListener('userReady', () => {
     });
     document.getElementById('gifSearch').addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); document.getElementById('doGifSearchBtn').click(); }});
 
-    // --- CONTEXT MENU (Click Derecho y Touch Long Press) ---
+    // --- CONTEXT MENU REPARADO (Click Derecho y Touch Long Press) ---
     const ctxMenu = document.getElementById('contextMenu');
-    let pressTimer;
     
     const showContextMenu = (e, msgData) => {
         e.preventDefault();
@@ -242,6 +280,7 @@ document.addEventListener('userReady', () => {
     };
 
     document.addEventListener('click', (e) => { if(!e.target.closest('.context-menu')) ctxMenu.classList.remove('active'); });
+    
     document.getElementById('ctxReply').addEventListener('click', () => {
         if(selectedMsgContext) {
             replyingTo = { username: selectedMsgContext.username, text: selectedMsgContext.text };
@@ -311,7 +350,7 @@ document.addEventListener('userReady', () => {
                 <span>${c.time} ${isMyProfile ? `<i class="fas fa-trash" style="color:var(--danger); cursor:pointer; margin-left:5px;" onclick="socket.emit('deleteComment', {targetUser:'${profileOwner}', commentId:'${c.id}', requesterUser:'${window.currentUsername}', requesterEmail:'${window.currentUserEmail}'})"></i>` : ''}</span>
                 <p>${c.text}</p>
             </div>
-        `).join('') || '<p style="color:var(--text-muted); font-size:0.9rem;">Muro vacío.</p>';
+        `).join('') || '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center;">Muro vacío.</p>';
         wall.scrollTop = wall.scrollHeight;
     };
 
@@ -391,7 +430,7 @@ document.addEventListener('userReady', () => {
             ${rHtml} ${content} <div class="msg-footer"><span class="time">${message.time}</span></div>
         `;
         
-        // Touch events para celular (Menú contextual)
+        // Context Menu REPARADO para celular y PC
         div.addEventListener('contextmenu', (e) => showContextMenu(e, message));
         div.addEventListener('touchstart', (e) => { pressTimer = window.setTimeout(() => showContextMenu(e, message), 600); });
         div.addEventListener('touchend', () => clearTimeout(pressTimer)); div.addEventListener('touchmove', () => clearTimeout(pressTimer));
@@ -403,5 +442,6 @@ document.addEventListener('userReady', () => {
 
     document.getElementById('searchInput').addEventListener('input', (e) => { const term = e.target.value.toLowerCase(); document.querySelectorAll('.message').forEach(msg => { msg.style.display = (msg.querySelector('.text')?.innerText.toLowerCase() || '').includes(term) ? 'block' : 'none'; }); });
 
-    sendUserData('Lobby'); renderFriendsUI();
+    // --- INICIO AL LOBBY ---
+    switchAppView('viewLobby'); renderFriendsUI();
 });
