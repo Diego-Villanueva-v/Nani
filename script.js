@@ -1,110 +1,55 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('registroForm');
-    const btnSubmit = document.getElementById('submitBtn');
-    
-    const inputs = {
-        username: document.getElementById('username'),
-        email: document.getElementById('email'),
-        password: document.getElementById('password'),
-        confirmPassword: document.getElementById('confirmPassword')
-    };
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    const errors = {
-        username: document.getElementById('usernameError'),
-        email: document.getElementById('emailError'),
-        password: document.getElementById('passwordError'),
-        confirmPassword: document.getElementById('confirmPasswordError')
-    };
+const firebaseConfig = {
+    apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
+    authDomain: "gen-lang-client-0867834675.firebaseapp.com",
+    projectId: "gen-lang-client-0867834675",
+    storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
+    messagingSenderId: "751363702976",
+    appId: "1:751363702976:web:3568444232a9343a136d25"
+};
 
-    const validState = { username: false, email: false, password: false, confirmPassword: false };
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-    const regex = {
-        username: /^[a-zA-Z0-9]{6,}$/, 
-        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, 
-        password: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\S]{8,}$/ 
-    };
+const showToast = (msg, type = 'error') => {
+    const toast = document.getElementById('toastNotification');
+    toast.textContent = msg; toast.className = `toast show ${type}`;
+    setTimeout(() => { toast.classList.remove('show'); }, 4000);
+};
 
-    const setValid = (field) => {
-        inputs[field].classList.remove('invalid');
-        inputs[field].classList.add('valid');
-        inputs[field].nextElementSibling.className = 'icon fas fa-check-circle valid-icon';
-        validState[field] = true;
-        checkFormValidity();
-    };
+document.getElementById('registroForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Creando...';
 
-    const setInvalid = (field, message) => {
-        inputs[field].classList.remove('valid');
-        inputs[field].classList.add('invalid');
-        inputs[field].nextElementSibling.className = 'icon fas fa-times-circle invalid-icon';
-        errors[field].textContent = message;
-        validState[field] = false;
-        checkFormValidity();
-    };
+    const username = document.getElementById('username').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
 
-    inputs.username.addEventListener('input', () => {
-        errors.username.textContent = '';
-        !regex.username.test(inputs.username.value) ? setInvalid('username', 'Mínimo 6 caracteres sin símbolos.') : setValid('username');
-    });
+    if (password.length < 6) {
+        showToast('La contraseña debe tener al menos 6 caracteres.');
+        btn.disabled = false; btn.textContent = 'Registrarme';
+        return;
+    }
 
-    inputs.email.addEventListener('input', () => {
-        errors.email.textContent = '';
-        !regex.email.test(inputs.email.value) ? setInvalid('email', 'Ingrese un correo válido.') : setValid('email');
-    });
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-    inputs.password.addEventListener('input', () => {
-        errors.password.textContent = '';
-        !regex.password.test(inputs.password.value) ? setInvalid('password', 'Mín 8 carac., 1 mayúscula, 1 minúscula, 1 número.') : setValid('password');
-        if (inputs.confirmPassword.value.length > 0) validateConfirmPassword();
-    });
+        await setDoc(doc(db, "usuarios", user.uid), {
+            username: username, email: email, fechaRegistro: new Date()
+        });
 
-    const validateConfirmPassword = () => {
-        errors.confirmPassword.textContent = '';
-        (inputs.confirmPassword.value !== inputs.password.value || inputs.confirmPassword.value === '') ? setInvalid('confirmPassword', 'Las contraseñas no coinciden.') : setValid('confirmPassword');
-    };
-    
-    inputs.confirmPassword.addEventListener('input', validateConfirmPassword);
+        showToast('¡Cuenta creada con éxito!', 'success');
+        setTimeout(() => { window.location.href = 'index.html'; }, 1500);
 
-    const checkFormValidity = () => {
-        btnSubmit.disabled = !(validState.username && validState.email && validState.password && validState.confirmPassword);
-    };
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        if (!btnSubmit.disabled) {
-            btnSubmit.disabled = true;
-            btnSubmit.textContent = 'Creando cuenta...';
-            const mensajeFinal = document.getElementById('mensajeFinal');
-
-            try {
-                const userCredential = await window.createUserWithEmailAndPassword(window.auth, inputs.email.value, inputs.password.value);
-                const user = userCredential.user;
-
-                await window.setDoc(window.doc(window.db, "usuarios", user.uid), {
-                    username: inputs.username.value,
-                    email: inputs.email.value,
-                    fechaRegistro: new Date()
-                });
-
-                mensajeFinal.textContent = '¡Cuenta creada! Redirigiendo al login...';
-                mensajeFinal.style.color = '#238636';
-                form.reset();
-                setTimeout(() => { window.location.href = 'index.html'; }, 2000);
-
-            } catch (error) {
-                console.error("Error al registrar: ", error);
-                
-                if (error.code === 'auth/email-already-in-use') {
-                    mensajeFinal.textContent = 'Este correo ya está registrado. Inicia sesión.';
-                } else if (error.code === 'auth/invalid-email') {
-                    mensajeFinal.textContent = 'Formato de correo inválido.';
-                } else {
-                    mensajeFinal.textContent = 'Hubo un error al registrar. Intenta de nuevo.';
-                }
-                mensajeFinal.style.color = '#f85149';
-                btnSubmit.disabled = false;
-                btnSubmit.textContent = 'Crear mi cuenta';
-            }
-        }
-    });
+    } catch (error) {
+        if (error.code === 'auth/email-already-in-use') showToast('Este correo ya está registrado.');
+        else showToast('Hubo un error al registrar. Intenta de nuevo.');
+        btn.disabled = false; btn.textContent = 'Registrarme';
+    }
 });

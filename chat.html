@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nani? - Chat</title>
+    <title>Nani? - App</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
+
+<div id="toastNotification" class="toast"></div>
 
 <div id="onboardingModal" class="modal onboarding" style="z-index: 9999;">
     <div class="modal-content onboard-step active" id="onboardStep1">
@@ -41,11 +43,11 @@
                 <div class="lobby-icon-container">
                     <i class="fas fa-meteor lobby-icon"></i>
                 </div>
-                <h2 style="font-size: 2rem; margin-bottom: 10px;">Explora Nani</h2>
-                <p style="color: var(--text-muted); margin-bottom: 30px;">Entra a las salas globales y conoce gente nueva.</p>
+                <h2 style="font-size: 2rem; margin-bottom: 10px;">Comunidad Nani</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px;">Explora las salas públicas o crea una nueva.</p>
                 
                 <div class="room-selector-box">
-                    <h4 style="color:var(--text-muted); margin-bottom:10px; font-size:0.8rem; text-transform:uppercase;">Salas Públicas</h4>
+                    <h4 style="color:var(--text-muted); margin-bottom:10px; font-size:0.8rem; text-transform:uppercase;">Salas Disponibles</h4>
                     <div class="custom-dropdown" id="roomDropdown">
                         <div class="dropdown-header" id="dropdownHeader">
                             <span id="selectedRoomText">General</span>
@@ -72,7 +74,7 @@
                 <div style="display: flex; gap: 10px; align-items:center;">
                     <div class="search-history hide-mobile">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="Buscar en la sala...">
+                        <input type="text" id="searchInput" placeholder="Buscar mensaje...">
                     </div>
                     <button id="deleteRoomBtn" class="btn-danger-outline" style="display:none; padding: 8px 12px; border-radius: 12px;" title="Borrar Sala"><i class="fas fa-trash"></i></button>
                     <button id="leaveRoomBtn" class="btn-icon-small" title="Abandonar Sala"><i class="fas fa-sign-out-alt"></i></button>
@@ -112,7 +114,7 @@
                 <label for="fileInput" class="btn-icon" style="cursor:pointer;"><i class="fas fa-image"></i></label>
                 
                 <div class="input-chat-wrapper">
-                    <input type="text" id="messageInput" placeholder="Escribe o pega un mensaje..." autocomplete="off">
+                    <input type="text" id="messageInput" placeholder="Escribe un mensaje..." autocomplete="off">
                 </div>
                 
                 <button type="button" id="voiceBtn" class="btn-icon voice-btn"><i class="fas fa-microphone"></i></button>
@@ -122,7 +124,7 @@
 
         <div id="viewFriends" class="app-view">
             <div class="friends-container">
-                <h2 style="margin-bottom: 20px; color: #fff; text-align: center;">Comunidad</h2>
+                <h2 style="margin-bottom: 20px; color: #fff; text-align: center;">Social</h2>
                 <div class="friends-tabs">
                     <button class="f-tab active" data-target="globalUsersList">Global</button>
                     <button class="f-tab" data-target="myFriendsList">Mis Amigos</button>
@@ -172,7 +174,7 @@
                 <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje</button>
                 <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
             </div>
-            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro de Comentarios</h4>
+            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
                 <input type="text" id="dCommentText" placeholder="Escribe algo...">
@@ -185,40 +187,40 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-content config-scrollable">
-        <h3 style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">Configuración</h3>
+        <h3 style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">Ajustes</h3>
         
         <div class="settings-section">
             <h4 style="color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase;">Apariencia</h4>
             <div class="form-group" style="text-align: center; margin-bottom: 15px;">
                 <img id="avatarPreview" src="" style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px; border:2px solid var(--accent);">
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
-                <label for="avatarInput" class="custom-file-upload" style="width:auto; display:inline-block;"><i class="fas fa-camera"></i> Cambiar Avatar</label>
+                <label for="avatarInput" class="custom-file-upload" style="width:auto; display:inline-block;"><i class="fas fa-camera"></i> Cambiar Foto</label>
             </div>
             <div class="form-group">
-                <input type="text" id="statusInput" placeholder="Mi Estado Actual...">
+                <input type="text" id="statusInput" placeholder="Escribe tu estado...">
             </div>
             <div class="color-selectors">
                 <div class="center-col"><label>Nombre</label><div class="color-picker-wrapper"><input type="color" id="colorPicker"></div></div>
                 <div class="center-col"><label>Burbuja</label><div class="color-picker-wrapper"><input type="color" id="bubbleColorPicker"></div></div>
             </div>
             <div class="form-group">
-                <label>Transparencia (<span id="opacityVal"></span>)</label>
+                <label>Transparencia de Burbuja</label>
                 <input type="range" id="bubbleOpacity" min="0.1" max="1" step="0.1" class="custom-range">
             </div>
             <div class="form-group">
-                <label>Fondo de Pantalla Local</label>
+                <label>Fondo de Sala</label>
                 <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
                 <div style="display: flex; gap: 5px;">
-                    <label for="bgLocalInput" class="custom-file-upload" style="flex:1; margin:0;"><i class="fas fa-image"></i> Personalizar</label>
+                    <label for="bgLocalInput" class="custom-file-upload" style="flex:1; margin:0;"><i class="fas fa-image"></i> Cambiar</label>
                     <button type="button" id="resetBgBtn" class="btn-danger-outline" style="flex:1; border-radius:12px;"><i class="fas fa-undo"></i> Reset</button>
                 </div>
             </div>
         </div>
 
         <div class="settings-section">
-            <h4 style="color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase;">Sistema</h4>
+            <h4 style="color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase;">Notificaciones</h4>
             <div class="toggle-row">
-                <span>Notificaciones</span>
+                <span>Sonido</span>
                 <input type="checkbox" id="notifToggle" class="toggle-switch" checked>
             </div>
             <div class="toggle-row">
@@ -227,56 +229,25 @@
             </div>
         </div>
 
-        <div class="settings-section" style="border: none; margin-bottom: 0; padding-bottom: 0;">
-            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Nani? V7.0</p>
-            <a href="mailto:unknownlineof@gmail.com" class="btn-primary-outline" style="display: block; text-align: center; text-decoration: none; margin-bottom: 10px;"><i class="fas fa-envelope"></i> Soporte Técnico</a>
-            <button id="logoutBtnCtx" class="btn-danger" style="width: 100%;"><i class="fas fa-power-off"></i> Cerrar Sesión</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+            <button id="saveConfigBtn" class="btn-primary" style="flex: 1;">Guardar Cambios</button>
         </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 25px;">
-            <button id="closeConfigBtn" class="btn-primary-outline" style="flex: 1;">Cancelar</button>
-            <button id="saveConfigBtn" class="btn-primary" style="flex: 2;">Guardar</button>
+        <div class="settings-list">
+            <a href="mailto:unknownlineof@gmail.com" class="settings-list-btn" style="text-decoration: none;">
+                <i class="fas fa-envelope"></i> Contactar Soporte
+            </a>
+            <button class="settings-list-btn text-danger" id="logoutBtnCtx">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </button>
         </div>
+        
+        <button id="closeConfigBtn" class="btn-primary-outline" style="width: 100%; margin-top: 15px; border: none;">Cerrar Menú</button>
     </div>
 </div>
 
 <audio id="notificationSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  const firebaseConfig = {
-      apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
-      authDomain: "gen-lang-client-0867834675.firebaseapp.com",
-      projectId: "gen-lang-client-0867834675",
-      storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
-      messagingSenderId: "751363702976",
-      appId: "1:751363702976:web:3568444232a9343a136d25"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  window.auth = getAuth(app); window.db = getFirestore(app); window.doc = doc; window.getDoc = getDoc; window.setDoc = setDoc;
-
-  onAuthStateChanged(window.auth, async (user) => {
-      if (!user) { window.location.href = 'index.html'; } else {
-          window.currentUserUid = user.uid;
-          window.currentUserEmail = user.email;
-          
-          const docSnap = await getDoc(doc(window.db, "usuarios", user.uid));
-          if (docSnap.exists()) {
-              window.currentUsername = docSnap.data().username;
-              window.userCloudData = docSnap.data(); 
-          } else { window.currentUsername = user.email.split('@')[0]; window.userCloudData = {}; }
-          document.dispatchEvent(new Event('userReady'));
-      }
-  });
-
-  document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('logoutBtnCtx').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
-  });
-</script>
-<script src="chat.js"></script>
+<script type="module" src="chat.js"></script>
 </body>
 </html>

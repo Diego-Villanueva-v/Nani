@@ -10,7 +10,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 let activeRooms = [
     { id: 'General', name: 'General', creator: 'Sistema' },
-    { id: 'Programación', name: 'Programación', creator: 'Sistema' },
+    { id: 'Programacion', name: 'Programación', creator: 'Sistema' },
     { id: 'Juegos', name: 'Juegos', creator: 'Sistema' }
 ];
 
@@ -18,15 +18,13 @@ let activeUsers = {};
 let profileComments = {}; 
 let roomHistory = {}; 
 
-// SEGURIDAD: Tu correo es la única llave maestra
+// SEGURIDAD: Solo este correo tiene poderes de Dios
 const SUPER_ADMIN_EMAIL = 'unknownlineof@gmail.com';
 
 io.on('connection', (socket) => {
-    
     socket.on('joinRoom', (userData) => {
         if (activeUsers[socket.id]) socket.leave(activeUsers[socket.id].room);
         
-        // Verificación real-time si es admin
         userData.isAdmin = userData.email === SUPER_ADMIN_EMAIL;
         
         socket.join(userData.room);
@@ -60,14 +58,10 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- PERFILES Y COMENTARIOS ---
     socket.on('getProfile', (targetUser) => {
         const user = Object.values(activeUsers).find(u => u.username === targetUser) || {};
         const comments = profileComments[targetUser] || [];
-        socket.emit('profileData', { 
-            username: targetUser, status: user.status, avatar: user.avatar, 
-            color: user.color, age: user.age, gender: user.gender, isAdmin: user.isAdmin, comments 
-        });
+        socket.emit('profileData', { username: targetUser, status: user.status, avatar: user.avatar, color: user.color, age: user.age, gender: user.gender, isAdmin: user.isAdmin, comments });
     });
 
     socket.on('addComment', ({ targetUser, from, text, time }) => {
@@ -83,11 +77,9 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- SISTEMA DE AMIGOS ---
     socket.on('sendFriendRequest', ({ from, to }) => io.emit('friendRequestReceived', { from, to }));
     socket.on('acceptFriendRequest', ({ from, to }) => io.emit('friendRequestAccepted', { from, to }));
 
-    // --- SALAS ---
     socket.on('createRoom', ({ roomName, creator }) => {
         if (!activeRooms.find(r => r.id === roomName) && roomName.trim() !== '') {
             activeRooms.push({ id: roomName, name: roomName, creator: creator });
@@ -97,7 +89,7 @@ io.on('connection', (socket) => {
 
     socket.on('deleteRoom', ({ roomName, requesterUser, requesterEmail }) => {
         const room = activeRooms.find(r => r.id === roomName);
-        if (room && !['General', 'Programación', 'Juegos'].includes(room.id)) {
+        if (room && !['General', 'Programacion', 'Juegos'].includes(room.id)) {
             if (room.creator === requesterUser || requesterEmail === SUPER_ADMIN_EMAIL) {
                 activeRooms = activeRooms.filter(r => r.id !== roomName);
                 delete roomHistory[roomName];
@@ -119,4 +111,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => console.log(`Nani? V7.0 Depurado en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`Nani? Server corriendo en puerto ${PORT}`));
