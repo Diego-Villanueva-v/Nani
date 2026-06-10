@@ -22,7 +22,7 @@ document.addEventListener('userReady', () => {
     document.getElementById('avatarPreview').src = userAvatar;
     if (chatBg) chatMessages.style.backgroundImage = `url(${chatBg})`;
 
-    // Compresor de Imágenes Universal
+    // Compresor de Imágenes Universal (Respeta los GIFs)
     const compressImage = (file, maxWidth, callback) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -75,15 +75,22 @@ document.addEventListener('userReady', () => {
         document.getElementById('configModal').classList.remove('active');
     });
 
-    // --- PORTAPAPELES (CTRL+V) ---
+    // --- PORTAPAPELES (CTRL+V) CON SOPORTE PARA GIFS ---
     document.addEventListener('paste', (e) => {
         const items = e.clipboardData.items;
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.indexOf('image') !== -1) {
                 const blob = items[i].getAsFile();
-                compressImage(blob, 800, (b64) => {
-                    enviarMensaje(b64, 'image');
-                });
+                
+                // Si es un GIF, lo pasamos crudo para no romper la animación
+                if (blob.type === 'image/gif') {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onload = (event) => enviarMensaje(event.target.result, 'image');
+                } else {
+                    // Si es otra imagen, la comprimimos
+                    compressImage(blob, 800, (b64) => enviarMensaje(b64, 'image'));
+                }
             }
         }
     });
@@ -218,8 +225,18 @@ document.addEventListener('userReady', () => {
         messageInput.value = '';
     });
 
+    // --- SUBIR ARCHIVOS (CON SOPORTE PARA GIFS) ---
     document.getElementById('fileInput').addEventListener('change', (e) => {
-        if(e.target.files[0]) compressImage(e.target.files[0], 800, (b64) => enviarMensaje(b64, 'image'));
+        const file = e.target.files[0];
+        if(file) {
+            if (file.type === 'image/gif') {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => enviarMensaje(event.target.result, 'image');
+            } else {
+                compressImage(file, 800, (b64) => enviarMensaje(b64, 'image'));
+            }
+        }
     });
 
     // --- GRABADORA DE AUDIO ---
@@ -259,7 +276,7 @@ document.addEventListener('userReady', () => {
             replyHTML = `
                 <div class="quoted-message">
                     <strong>${message.reply.username}</strong>
-                    <p>${message.reply.text.startsWith('data:image') || message.reply.text.startsWith('http') ? '📷 Imagen' : message.reply.text}</p>
+                    <p>${message.reply.text.startsWith('data:image') || message.reply.text.startsWith('http') ? '📷 Imagen / GIF' : message.reply.text}</p>
                 </div>
             `;
         }

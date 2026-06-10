@@ -221,3 +221,43 @@ select, input[type="text"] {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* =========================================
+   DISEÑO RESPONSIVE (CELULARES Y TABLETS)
+   ========================================= */
+@media (max-width: 850px) {
+    .chat-layout {
+        flex-direction: column;
+        height: 100vh;
+        border-radius: 0;
+        border: none;
+    }
+    
+    .chat-sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 30vh;
+        border-right: none;
+        border-bottom: 2px solid var(--border);
+        padding: 15px;
+    }
+    
+    .chat-main {
+        height: 70vh;
+    }
+    
+    .chat-header h2 { font-size: 1.1rem; }
+    .search-history input { width: 130px; font-size: 0.85rem; padding: 8px 15px 8px 30px; }
+    
+    .chat-messages { padding: 15px; gap: 10px; }
+    .message { max-width: 90%; padding: 10px 12px; }
+    
+    .chat-form { padding: 10px; gap: 8px; }
+    .chat-form input[type="text"] { padding: 10px 15px; font-size: 0.9rem; }
+    .btn-send { width: 40px; height: 40px; font-size: 1rem; }
+    .btn-icon { padding: 5px; font-size: 1.2rem; }
+    
+    .modal-content { width: 95%; padding: 25px; margin: 10px; }
+    .popup-picker { left: 10px; right: 10px; width: auto; bottom: 70px; }
+    .gif-picker { width: auto; }
+}
