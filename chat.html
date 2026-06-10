@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nani? - Chat Revolution</title>
+    <title>Nani? - Synthwave Chat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -32,9 +32,9 @@
             <h4>Salas Públicas</h4>
             <div style="display: flex; gap: 5px; margin-bottom: 10px;">
                 <select id="roomSelect"></select>
-                <button id="deleteRoomBtn" class="btn-icon-small" title="Eliminar sala"><i class="fas fa-trash"></i></button>
+                <button id="deleteRoomBtn" class="btn-icon-small" title="Eliminar sala" style="display:none;"><i class="fas fa-trash"></i></button>
             </div>
-            <button id="joinRoomBtn" class="btn-primary" style="width: 100%;">Transición a la sala</button>
+            <button id="joinRoomBtn" class="btn-primary" style="width: 100%;">Entrar a la sala</button>
             
             <div class="create-room">
                 <input type="text" id="newRoomInput" placeholder="Nombre nueva sala...">
@@ -55,7 +55,10 @@
 
     <main class="chat-main" id="chatMainPanel">
         <header class="chat-header">
-            <h2 id="roomTitle">Sala: General</h2>
+            <div class="header-info">
+                <h2 id="roomTitle">Sala: General</h2>
+                <small id="roomCreator" style="color: var(--text-muted); font-size: 0.8rem;"></small>
+            </div>
             <div class="search-history">
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="Buscar en la sala...">
@@ -72,15 +75,23 @@
             <button id="cancelReplyBtn"><i class="fas fa-times"></i></button>
         </div>
 
+        <div id="emojiPicker" class="popup-picker"></div>
+        <div id="gifPicker" class="popup-picker gif-picker">
+            <div style="display: flex; gap: 5px; width: 100%;">
+                <input type="text" id="gifSearch" placeholder="Busca un GIF...">
+                <button type="button" id="doGifSearchBtn" class="btn-primary" style="padding: 0 15px;"><i class="fas fa-search"></i></button>
+            </div>
+            <div id="gifResults" class="gif-results"></div>
+        </div>
+        <div id="stickerPicker" class="popup-picker gif-picker">
+            <h4 style="color: #fff; text-align: center; margin-bottom: 10px;">Mis Stickers</h4>
+            <div id="stickerResults" class="gif-results"></div>
+        </div>
+
         <form id="chatForm" class="chat-form">
             <button type="button" id="emojiBtn" class="btn-icon" title="Emojis"><i class="fas fa-smile"></i></button>
             <button type="button" id="gifBtn" class="btn-icon" title="GIFs"><i class="fas fa-film"></i></button>
-            
-            <div id="emojiPicker" class="popup-picker"></div>
-            <div id="gifPicker" class="popup-picker gif-picker">
-                <input type="text" id="gifSearch" placeholder="Busca un GIF y presiona Enter...">
-                <div id="gifResults" class="gif-results"></div>
-            </div>
+            <button type="button" id="stickerBtn" class="btn-icon" title="Stickers Favoritos"><i class="fas fa-star"></i></button>
             
             <input type="file" id="fileInput" style="display: none;" accept="image/*">
             <label for="fileInput" class="btn-icon" title="Adjuntar"><i class="fas fa-paperclip"></i></label>
@@ -93,6 +104,10 @@
     </main>
 </div>
 
+<div id="lightboxModal" class="modal lightbox" onclick="this.classList.remove('active')">
+    <img id="lightboxImg" src="">
+</div>
+
 <div id="discordProfileModal" class="modal">
     <div class="discord-profile-content">
         <div class="discord-banner" id="dProfileBanner"></div>
@@ -102,11 +117,11 @@
             <p id="dProfileStatus" class="discord-status">Sin estado</p>
         </div>
         <div class="discord-body">
-            <button id="dProfileDMBtn" class="btn-primary" style="width:100%; margin-bottom:15px;"><i class="fas fa-paper-plane"></i> Enviar Mensaje Privado</button>
-            <h4>Muro de Comentarios</h4>
+            <button id="dProfileDMBtn" class="btn-primary" style="width:100%; margin-bottom:15px;"><i class="fas fa-paper-plane"></i> Mensaje Privado</button>
+            <h4 style="color: #fff;">Muro de Comentarios</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
-                <input type="text" id="dCommentText" placeholder="Escribe algo en su perfil...">
+                <input type="text" id="dCommentText" placeholder="Escribe en su perfil...">
                 <button id="dCommentBtn" class="btn-primary"><i class="fas fa-comment"></i></button>
             </div>
         </div>
@@ -117,48 +132,38 @@
 <div id="configModal" class="modal">
     <div class="modal-content config-scrollable">
         <h3>Estética y Estado</h3>
-        
         <div class="form-group" style="text-align: center;">
             <div class="avatar-edit">
                 <img id="avatarPreview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
-                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Subir Avatar</label>
+                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Avatar</label>
             </div>
         </div>
-
         <div class="form-group">
             <label>Mi Estado Actual</label>
             <input type="text" id="statusInput" placeholder="Ej: Estudiando, Jugando Warframe...">
         </div>
-
         <div class="color-selectors">
             <div class="form-group center-col">
-                <label>Color del Nombre</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="colorPicker" value="#2f81f7">
-                </div>
+                <label>Tu Color</label>
+                <div class="color-picker-wrapper"><input type="color" id="colorPicker" value="#d946ef"></div>
             </div>
             <div class="form-group center-col">
-                <label>Color de Burbuja</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="bubbleColorPicker" value="#2f81f7">
-                </div>
+                <label>Burbuja</label>
+                <div class="color-picker-wrapper"><input type="color" id="bubbleColorPicker" value="#9333ea"></div>
             </div>
         </div>
-
         <div class="form-group">
-            <label>Transparencia de tu burbuja (<span id="opacityVal">100%</span>)</label>
+            <label>Transparencia de burbuja (<span id="opacityVal">100%</span>)</label>
             <input type="range" id="bubbleOpacity" min="0.1" max="1" step="0.1" value="1" style="width:100%;">
         </div>
-
         <div class="form-group" style="margin-top: 20px;">
-            <label>Fondo de pantalla (Wallpaper de la sala)</label>
+            <label>Fondo de pantalla del Chat</label>
             <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
             <label for="bgLocalInput" class="custom-file-upload"><i class="fas fa-image"></i> Cargar Wallpaper</label>
         </div>
-
         <div style="display: flex; gap: 10px; margin-top: 25px;">
-            <button id="closeConfigBtn" class="btn-danger" style="flex: 1; margin: 0;">Cancelar</button>
+            <button id="closeConfigBtn" class="btn-danger" style="flex: 1; margin: 0;">Cerrar</button>
             <button id="saveConfigBtn" class="btn-primary" style="flex: 1; margin: 0;">Aplicar</button>
         </div>
     </div>
@@ -195,9 +200,7 @@
       }
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', () => {
-      signOut(window.auth).then(() => window.location.href = 'index.html');
-  });
+  document.getElementById('logoutBtn').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
 </script>
 <script src="chat.js"></script>
 </body>
