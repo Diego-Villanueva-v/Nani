@@ -18,7 +18,6 @@ let activeUsers = {};
 let profileComments = {}; 
 let roomHistory = {}; 
 
-// SEGURIDAD: Solo este correo tiene poderes de Dios
 const SUPER_ADMIN_EMAIL = 'unknownlineof@gmail.com';
 
 io.on('connection', (socket) => {
@@ -38,7 +37,9 @@ io.on('connection', (socket) => {
 
         const getUniqueUsers = (arr) => Object.values(arr.reduce((acc, u) => ({...acc, [u.username]: u}), {}));
         io.to(userData.room).emit('updateUserList', getUniqueUsers(Object.values(activeUsers).filter(u => u.room === userData.room && !u.room.includes('_'))));
-        io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers).filter(u => u.room !== 'Lobby')));
+        
+        // Ahora sí envía TODOS los usuarios globales, incluyendo los del Lobby
+        io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers)));
     });
 
     socket.on('chatMessage', (data) => {
@@ -61,7 +62,18 @@ io.on('connection', (socket) => {
     socket.on('getProfile', (targetUser) => {
         const user = Object.values(activeUsers).find(u => u.username === targetUser) || {};
         const comments = profileComments[targetUser] || [];
-        socket.emit('profileData', { username: targetUser, status: user.status, avatar: user.avatar, color: user.color, age: user.age, gender: user.gender, isAdmin: user.isAdmin, comments });
+        
+        // Si el usuario no está activo, igual devuelve sus datos por defecto para evitar que el front crashee
+        socket.emit('profileData', { 
+            username: targetUser, 
+            status: user.status || 'Desconectado', 
+            avatar: user.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', 
+            color: user.color || '#d946ef', 
+            age: user.age || '', 
+            gender: user.gender || '', 
+            isAdmin: user.isAdmin || false, 
+            comments 
+        });
     });
 
     socket.on('addComment', ({ targetUser, from, text, time }) => {
@@ -105,7 +117,7 @@ io.on('connection', (socket) => {
             delete activeUsers[socket.id];
             const getUniqueUsers = (arr) => Object.values(arr.reduce((acc, u) => ({...acc, [u.username]: u}), {}));
             io.to(user.room).emit('updateUserList', getUniqueUsers(Object.values(activeUsers).filter(u => u.room === user.room && !u.room.includes('_'))));
-            io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers).filter(u => u.room !== 'Lobby')));
+            io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers)));
         }
     });
 });
