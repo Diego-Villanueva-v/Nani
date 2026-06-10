@@ -21,7 +21,7 @@ io.on('connection', (socket) => {
         activeUsers[socket.id] = { username, room, color, avatar };
         
         io.emit('updateRooms', activeRooms);
-        // Filtrar salas privadas y de "guardados" de la lista pública
+        // Filtramos para no mostrar salas privadas o de guardados en la lista pública
         io.to(room).emit('updateUserList', Object.values(activeUsers).filter(u => u.room === room && !u.room.includes('_')));
         io.emit('updateGlobalUsers', Object.values(activeUsers));
     });
@@ -55,4 +55,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => console.log(`Servidor maestro corriendo en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`Nani? Server corriendo en puerto ${PORT}`));

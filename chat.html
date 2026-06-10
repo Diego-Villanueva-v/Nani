@@ -3,31 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat en Tiempo Real - UCSC</title>
+    <title>Nani? - Chat</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
 
 <div class="chat-layout">
     <aside class="chat-sidebar">
-        <h3><i class="fas fa-comments"></i> UCSC Chat</h3>
-        <p id="currentUserDisplay">Usuario: Cargando...</p>
-        
-        <button id="configBtn" class="btn-secondary" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-cog"></i> Personalizar Chat</button>
+        <div class="sidebar-header">
+            <div class="sidebar-header-left">
+                <img id="myMiniAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Avatar">
+                <div class="user-info">
+                    <h3>Nani?</h3>
+                    <p id="currentUserDisplay">Cargando...</p>
+                </div>
+            </div>
+            <button id="configBtn" title="Configuración de Perfil"><i class="fas fa-cog"></i></button>
+        </div>
+
+        <button id="savedMessagesBtn" class="saved-btn"><i class="fas fa-bookmark"></i> Mis Mensajes Guardados</button>
 
         <div class="room-selector">
-            <h4>Salas Temáticas</h4>
+            <h4>Salas Públicas</h4>
             <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                <select id="roomSelect" style="flex: 1; padding: 5px; border-radius: 4px;"></select>
-                <button id="deleteRoomBtn" class="btn-danger" title="Eliminar sala actual"><i class="fas fa-trash"></i></button>
+                <select id="roomSelect"></select>
+                <button id="deleteRoomBtn" class="btn-icon-small" title="Eliminar sala"><i class="fas fa-trash"></i></button>
             </div>
-            <button id="joinRoomBtn" class="btn-primary" style="width: 100%; margin-bottom: 10px;">Unirse a la sala</button>
+            <button id="joinRoomBtn" class="btn-primary" style="width: 100%;">Entrar a la sala</button>
             
-            <div class="create-room" style="display: flex; gap: 5px; border-top: 1px solid #455a64; padding-top: 10px;">
-                <input type="text" id="newRoomInput" placeholder="Nueva sala..." style="flex: 1; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-                <button id="createRoomBtn" class="btn-primary" title="Crear Sala"><i class="fas fa-plus"></i></button>
+            <div class="create-room">
+                <input type="text" id="newRoomInput" placeholder="Nombre nueva sala...">
+                <button id="createRoomBtn" class="btn-icon-small" title="Crear"><i class="fas fa-plus"></i></button>
             </div>
         </div>
 
@@ -35,71 +43,81 @@
             <h4><i class="fas fa-users"></i> En esta sala</h4>
             <ul id="roomUsers" class="user-list"></ul>
             
-            <h4 style="margin-top: 10px;"><i class="fas fa-globe"></i> Globales en línea</h4>
+            <h4 style="margin-top: 20px;"><i class="fas fa-globe"></i> Globales en línea</h4>
             <ul id="globalUsers" class="user-list"></ul>
         </div>
 
-        <button id="logoutBtn" class="btn-danger" style="margin-top: 15px;"><i class="fas fa-sign-out-alt"></i> Salir</button>
+        <button id="logoutBtn" class="btn-danger"><i class="fas fa-sign-out-alt"></i> Desconectar</button>
     </aside>
 
     <main class="chat-main">
         <header class="chat-header">
             <h2 id="roomTitle">Sala: General</h2>
             <div class="search-history">
-                <input type="text" id="searchInput" placeholder="Buscar mensajes...">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Buscar en la sala...">
             </div>
         </header>
 
         <div class="chat-messages" id="chatMessages"></div>
 
+        <div id="replyPreview" class="reply-preview">
+            <div class="reply-content">
+                <span id="replyName"></span>
+                <p id="replyText"></p>
+            </div>
+            <button id="cancelReplyBtn"><i class="fas fa-times"></i></button>
+        </div>
+
         <form id="chatForm" class="chat-form">
-            <div class="emoji-container">
-                <button type="button" id="emojiBtn" class="btn-icon"><i class="fas fa-smile"></i></button>
-                <div id="emojiPicker" class="emoji-picker">
-                    <span class="emoji-item">😀</span><span class="emoji-item">😂</span><span class="emoji-item">🥺</span><span class="emoji-item">😎</span><span class="emoji-item">😍</span>
-                    <span class="emoji-item">👍</span><span class="emoji-item">❤️</span><span class="emoji-item">🔥</span><span class="emoji-item">🎉</span><span class="emoji-item">✨</span>
-                    <span class="emoji-item">😭</span><span class="emoji-item">🙏</span><span class="emoji-item">😅</span><span class="emoji-item">🤔</span><span class="emoji-item">🥰</span>
-                </div>
+            <button type="button" id="emojiBtn" class="btn-icon" title="Emojis"><i class="fas fa-smile"></i></button>
+            <button type="button" id="gifBtn" class="btn-icon" title="GIFs"><i class="fas fa-film"></i></button>
+            
+            <div id="emojiPicker" class="popup-picker"></div>
+            <div id="gifPicker" class="popup-picker gif-picker">
+                <input type="text" id="gifSearch" placeholder="Buscar GIF...">
+                <div id="gifResults" class="gif-results"></div>
             </div>
             
             <input type="file" id="fileInput" style="display: none;" accept="image/*">
-            <label for="fileInput" class="btn-icon" style="cursor: pointer;" title="Enviar Imagen"><i class="fas fa-image"></i></label>
+            <label for="fileInput" class="btn-icon" title="Adjuntar Archivo"><i class="fas fa-paperclip"></i></label>
             
-            <button type="button" id="voiceBtn" class="btn-icon voice-btn" title="Mantén presionado para grabar"><i class="fas fa-microphone"></i></button>
+            <input type="text" id="messageInput" placeholder="Escribe un mensaje o pega (Ctrl+V) una imagen..." autocomplete="off">
             
-            <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." autocomplete="off">
-            <button type="submit" class="btn-primary"><i class="fas fa-paper-plane"></i></button>
+            <button type="button" id="voiceBtn" class="btn-icon voice-btn" title="Grabar nota de voz"><i class="fas fa-microphone"></i></button>
+            <button type="submit" class="btn-send"><i class="fas fa-paper-plane"></i></button>
         </form>
     </main>
 </div>
 
 <div id="configModal" class="modal">
     <div class="modal-content">
-        <h3>Mi Perfil y Diseño</h3>
+        <h3>Tu Perfil y Diseño</h3>
         
         <div class="form-group" style="text-align: center;">
-            <label>Foto de Perfil (Avatar):</label>
-            <input type="file" id="avatarInput" accept="image/*" style="font-size: 0.8em; margin-bottom: 5px;">
-            <img id="avatarPreview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #0084ff;">
-        </div>
-
-       <div class="form-group" style="text-align: center;">
-            <label>Foto de Perfil (Avatar):</label>
+            <label style="margin-bottom: 15px;">Foto de Perfil (Avatar)</label>
             <div class="avatar-edit">
                 <img id="avatarPreview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
-                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Subir Avatar</label>
+                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Subir nuevo Avatar</label>
             </div>
         </div>
 
         <div class="form-group">
-            <label>Fondo de Chat:</label>
-            <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
-            <label for="bgLocalInput" class="custom-file-upload" style="display: block; text-align: center;"><i class="fas fa-image"></i> Elegir Fondo</label>
+            <label>Color de tu nombre (Identidad)</label>
+            <input type="color" id="colorPicker" value="#2f81f7">
         </div>
 
-        <button id="saveConfigBtn" class="btn-primary" style="width: 100%; margin-top: 15px;">Guardar Cambios</button>
-        <button id="closeConfigBtn" class="btn-danger" style="width: 100%; margin-top: 10px;">Cerrar</button>
+        <div class="form-group" style="margin-top: 25px;">
+            <label style="margin-bottom: 10px;">Fondo de pantalla de la sala</label>
+            <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
+            <label for="bgLocalInput" class="custom-file-upload"><i class="fas fa-image"></i> Seleccionar Fondo Local</label>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <button id="closeConfigBtn" class="btn-danger" style="flex: 1; margin: 0;">Cancelar</button>
+            <button id="saveConfigBtn" class="btn-primary" style="flex: 1; margin: 0;">Guardar Cambios</button>
+        </div>
     </div>
 </div>
 
@@ -116,38 +134,26 @@
       projectId: "gen-lang-client-0867834675",
       storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
       messagingSenderId: "751363702976",
-      appId: "1:751363702976:web:3568444232a9343a136d25",
-      measurementId: "G-NRST14BV45"
+      appId: "1:751363702976:web:3568444232a9343a136d25"
   };
 
   const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  window.auth = auth;
-  window.db = db;
+  window.auth = getAuth(app);
+  window.db = getFirestore(app);
   window.doc = doc;
   window.getDoc = getDoc;
-  window.signOut = signOut;
 
-  onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-          window.location.href = 'login.html';
-      } else {
-          const docRef = doc(db, "usuarios", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-              window.currentUsername = docSnap.data().username;
-          } else {
-              window.currentUsername = user.email.split('@')[0];
-          }
-          document.getElementById('currentUserDisplay').textContent = 'Usuario: ' + window.currentUsername;
+  onAuthStateChanged(window.auth, async (user) => {
+      if (!user) { window.location.href = 'index.html'; } else {
+          const docSnap = await getDoc(doc(window.db, "usuarios", user.uid));
+          window.currentUsername = docSnap.exists() ? docSnap.data().username : user.email.split('@')[0];
+          document.getElementById('currentUserDisplay').textContent = window.currentUsername;
           document.dispatchEvent(new Event('userReady'));
       }
   });
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
-      signOut(auth).then(() => window.location.href = 'login.html');
+      signOut(window.auth).then(() => window.location.href = 'index.html');
   });
 </script>
 <script src="chat.js"></script>

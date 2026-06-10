@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro Avanzado</title>
+    <title>Nani? - Crear Cuenta</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
 <div class="registro-container">
-    <h2>Crear Cuenta</h2>
+    <div class="brand-header">
+        <h2>Unirse a Nani?</h2>
+        <p>Crea tu identidad en el sistema.</p>
+    </div>
     <form id="registroForm">
         
         <div class="form-group">
@@ -49,11 +52,12 @@
             <div id="confirmPasswordError" class="error-message"></div>
         </div>
 
-        <button type="submit" id="submitBtn" disabled>Registrarse</button>
-        <div id="mensajeFinal" style="text-align: center; margin-top: 15px; font-weight: bold;"></div>
+        <button type="submit" id="submitBtn" class="btn-primary" disabled>Crear mi cuenta</button>
+        <div id="mensajeFinal" style="text-align: center; margin-top: 15px; font-weight: bold; font-size: 0.9rem;"></div>
         
-        <div style="text-align: center; margin-top: 15px;">
-            <a href="login.html" style="color: #007bff; text-decoration: none; font-size: 14px;">¿Ya tienes cuenta? Inicia sesión aquí</a>
+        <div style="text-align: center; margin-top: 25px;">
+            <span style="color: #8b949e; font-size: 0.9rem;">¿Ya tienes cuenta?</span> 
+            <a href="index.html" class="link-text">Inicia sesión aquí</a>
         </div>
     </form>
 </div>
@@ -63,16 +67,14 @@
   import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // IMPORTANTE: Reemplaza esto con los datos de tu proyecto de Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
-  authDomain: "gen-lang-client-0867834675.firebaseapp.com",
-  projectId: "gen-lang-client-0867834675",
-  storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
-  messagingSenderId: "751363702976",
-  appId: "1:751363702976:web:3568444232a9343a136d25",
-  measurementId: "G-NRST14BV45"
-};
+  const firebaseConfig = {
+      apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
+      authDomain: "gen-lang-client-0867834675.firebaseapp.com",
+      projectId: "gen-lang-client-0867834675",
+      storageBucket: "gen-lang-client-0867834675.firebasestorage.app",
+      messagingSenderId: "751363702976",
+      appId: "1:751363702976:web:3568444232a9343a136d25"
+  };
 
   const app = initializeApp(firebaseConfig);
   window.auth = getAuth(app);

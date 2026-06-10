@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inputs.password.addEventListener('input', () => {
         errors.password.textContent = '';
-        !regex.password.test(inputs.password.value) ? setInvalid('password', 'Mínimo 8 caracteres, 1 mayúscula, 1 minúscula y 1 número.') : setValid('password');
+        !regex.password.test(inputs.password.value) ? setInvalid('password', 'Mín 8 carac., 1 mayúscula, 1 minúscula, 1 número.') : setValid('password');
         if (inputs.confirmPassword.value.length > 0) validateConfirmPassword();
     });
 
@@ -73,40 +73,37 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!btnSubmit.disabled) {
             btnSubmit.disabled = true;
-            btnSubmit.textContent = 'Registrando...';
+            btnSubmit.textContent = 'Creando cuenta...';
             const mensajeFinal = document.getElementById('mensajeFinal');
 
             try {
-                // 1. Crear usuario en Auth
                 const userCredential = await window.createUserWithEmailAndPassword(window.auth, inputs.email.value, inputs.password.value);
                 const user = userCredential.user;
 
-                // 2. Guardar en Firestore
                 await window.setDoc(window.doc(window.db, "usuarios", user.uid), {
                     username: inputs.username.value,
                     email: inputs.email.value,
                     fechaRegistro: new Date()
                 });
 
-                mensajeFinal.textContent = '¡Registro exitoso! Ya puedes iniciar sesión.';
-                mensajeFinal.style.color = 'green';
+                mensajeFinal.textContent = '¡Cuenta creada! Redirigiendo al login...';
+                mensajeFinal.style.color = '#238636';
                 form.reset();
-                setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+                setTimeout(() => { window.location.href = 'index.html'; }, 2000);
 
             } catch (error) {
                 console.error("Error al registrar: ", error);
-                mensajeFinal.style.color = 'red';
                 
-                // Manejo de errores exactos
                 if (error.code === 'auth/email-already-in-use') {
-                    mensajeFinal.textContent = 'Este correo ya está registrado. Intenta iniciar sesión.';
+                    mensajeFinal.textContent = 'Este correo ya está registrado. Inicia sesión.';
                 } else if (error.code === 'auth/invalid-email') {
-                    mensajeFinal.textContent = 'El formato del correo es inválido.';
+                    mensajeFinal.textContent = 'Formato de correo inválido.';
                 } else {
                     mensajeFinal.textContent = 'Hubo un error al registrar. Intenta de nuevo.';
                 }
+                mensajeFinal.style.color = '#f85149';
                 btnSubmit.disabled = false;
-                btnSubmit.textContent = 'Registrarse';
+                btnSubmit.textContent = 'Crear mi cuenta';
             }
         }
     });
