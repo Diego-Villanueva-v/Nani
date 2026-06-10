@@ -1,6 +1,6 @@
 document.addEventListener('userReady', () => {
-    // IMPORTANTE: URL de tu servidor Railway
-    const socket = io('https://tu-proyecto-railway.up.railway.app'); 
+    // URL servidor Railway
+    const socket = io('https://chat-project-production-b900.up.railway.app'); 
 
     const chatMessages = document.getElementById('chatMessages');
     const messageInput = document.getElementById('messageInput');
