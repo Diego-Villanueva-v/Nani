@@ -11,7 +11,7 @@
 <body>
 
 <div class="chat-layout">
-    <aside class="chat-sidebar">
+    <aside class="chat-sidebar" id="mobileSidebar">
         <div class="sidebar-header">
             <div class="sidebar-header-left" style="cursor:pointer;" id="myProfileTrigger">
                 <div style="position: relative;">
@@ -30,11 +30,19 @@
 
         <div class="room-selector">
             <h4>Salas Públicas</h4>
-            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                <select id="roomSelect"></select>
-                <button id="deleteRoomBtn" class="btn-icon-small" title="Eliminar sala" style="display:none;"><i class="fas fa-trash"></i></button>
+            
+            <div class="custom-dropdown" id="roomDropdown">
+                <div class="dropdown-header" id="dropdownHeader">
+                    <span id="selectedRoomText">General</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <ul class="dropdown-list" id="dropdownList"></ul>
             </div>
-            <button id="joinRoomBtn" class="btn-primary" style="width: 100%;">Entrar a la sala</button>
+            
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <button id="joinRoomBtn" class="btn-primary" style="flex: 1;">Entrar a la sala</button>
+                <button id="deleteRoomBtn" class="btn-icon-small" title="Eliminar sala" style="display:none; padding: 0 15px;"><i class="fas fa-trash"></i></button>
+            </div>
             
             <div class="create-room">
                 <input type="text" id="newRoomInput" placeholder="Nombre nueva sala...">
@@ -53,11 +61,16 @@
         <button id="logoutBtn" class="btn-danger"><i class="fas fa-power-off"></i> Desconectar</button>
     </aside>
 
+    <div id="mobileOverlay" class="sidebar-overlay"></div>
+
     <main class="chat-main" id="chatMainPanel">
         <header class="chat-header">
-            <div class="header-info">
-                <h2 id="roomTitle">Sala: General</h2>
-                <small id="roomCreator" style="color: var(--text-muted); font-size: 0.8rem;"></small>
+            <div class="header-info" style="display: flex; align-items: center; gap: 15px;">
+                <button id="mobileMenuBtn" class="mobile-only-btn"><i class="fas fa-bars"></i></button>
+                <div>
+                    <h2 id="roomTitle">Cargando...</h2>
+                    <small id="roomCreator" style="color: var(--text-muted); font-size: 0.8rem;"></small>
+                </div>
             </div>
             <div class="search-history">
                 <i class="fas fa-search"></i>
@@ -84,7 +97,7 @@
             <div id="gifResults" class="gif-results"></div>
         </div>
         <div id="stickerPicker" class="popup-picker gif-picker">
-            <h4 style="color: #fff; text-align: center; margin-bottom: 10px;">Mis Stickers</h4>
+            <h4 style="text-align: center; margin-bottom: 10px; color: var(--text-main);">Mis Stickers</h4>
             <div id="stickerResults" class="gif-results"></div>
         </div>
 
@@ -96,7 +109,7 @@
             <input type="file" id="fileInput" style="display: none;" accept="image/*">
             <label for="fileInput" class="btn-icon" title="Adjuntar"><i class="fas fa-paperclip"></i></label>
             
-            <input type="text" id="messageInput" placeholder="Escribe o pega (Ctrl+V) algo genial..." autocomplete="off">
+            <input type="text" id="messageInput" placeholder="Mensaje..." autocomplete="off">
             
             <button type="button" id="voiceBtn" class="btn-icon voice-btn" title="Grabar audio"><i class="fas fa-microphone"></i></button>
             <button type="submit" class="btn-send"><i class="fas fa-paper-plane"></i></button>
@@ -118,7 +131,7 @@
         </div>
         <div class="discord-body">
             <button id="dProfileDMBtn" class="btn-primary" style="width:100%; margin-bottom:15px;"><i class="fas fa-paper-plane"></i> Mensaje Privado</button>
-            <h4 style="color: #fff;">Muro de Comentarios</h4>
+            <h4 style="color: var(--text-main);">Muro de Comentarios</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
                 <input type="text" id="dCommentText" placeholder="Escribe en su perfil...">
@@ -145,7 +158,7 @@
         </div>
         <div class="color-selectors">
             <div class="form-group center-col">
-                <label>Tu Color</label>
+                <label>Nombre</label>
                 <div class="color-picker-wrapper"><input type="color" id="colorPicker" value="#d946ef"></div>
             </div>
             <div class="form-group center-col">
@@ -155,14 +168,19 @@
         </div>
         <div class="form-group">
             <label>Transparencia de burbuja (<span id="opacityVal">100%</span>)</label>
-            <input type="range" id="bubbleOpacity" min="0.1" max="1" step="0.1" value="1" style="width:100%;">
+            <input type="range" id="bubbleOpacity" min="0.1" max="1" step="0.1" value="1" class="custom-range">
         </div>
+        
         <div class="form-group" style="margin-top: 20px;">
             <label>Fondo de pantalla del Chat</label>
             <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
-            <label for="bgLocalInput" class="custom-file-upload"><i class="fas fa-image"></i> Cargar Wallpaper</label>
+            <div style="display: flex; gap: 10px;">
+                <label for="bgLocalInput" class="custom-file-upload" style="flex: 1; margin: 0;"><i class="fas fa-image"></i> Personalizar</label>
+                <button type="button" id="resetBgBtn" class="btn-danger" style="flex: 1; margin: 0; padding: 12px; border-radius: 12px; font-size: 0.9rem;"><i class="fas fa-undo"></i> Restablecer</button>
+            </div>
         </div>
-        <div style="display: flex; gap: 10px; margin-top: 25px;">
+
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
             <button id="closeConfigBtn" class="btn-danger" style="flex: 1; margin: 0;">Cerrar</button>
             <button id="saveConfigBtn" class="btn-primary" style="flex: 1; margin: 0;">Aplicar</button>
         </div>
