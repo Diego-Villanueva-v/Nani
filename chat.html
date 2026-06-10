@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nani? - Chat</title>
+    <title>Nani? - Chat Revolution</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -13,17 +13,20 @@
 <div class="chat-layout">
     <aside class="chat-sidebar">
         <div class="sidebar-header">
-            <div class="sidebar-header-left">
-                <img id="myMiniAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Avatar">
+            <div class="sidebar-header-left" style="cursor:pointer;" id="myProfileTrigger">
+                <div style="position: relative;">
+                    <img id="myMiniAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Avatar">
+                    <div class="status-indicator"></div>
+                </div>
                 <div class="user-info">
                     <h3>Nani?</h3>
                     <p id="currentUserDisplay">Cargando...</p>
                 </div>
             </div>
-            <button id="configBtn" title="Configuración de Perfil"><i class="fas fa-cog"></i></button>
+            <button id="configBtn" title="Ajustes y Diseño"><i class="fas fa-cog"></i></button>
         </div>
 
-        <button id="savedMessagesBtn" class="saved-btn"><i class="fas fa-bookmark"></i> Mis Mensajes Guardados</button>
+        <button id="savedMessagesBtn" class="saved-btn"><i class="fas fa-bookmark"></i> Mis Guardados</button>
 
         <div class="room-selector">
             <h4>Salas Públicas</h4>
@@ -31,7 +34,7 @@
                 <select id="roomSelect"></select>
                 <button id="deleteRoomBtn" class="btn-icon-small" title="Eliminar sala"><i class="fas fa-trash"></i></button>
             </div>
-            <button id="joinRoomBtn" class="btn-primary" style="width: 100%;">Entrar a la sala</button>
+            <button id="joinRoomBtn" class="btn-primary" style="width: 100%;">Transición a la sala</button>
             
             <div class="create-room">
                 <input type="text" id="newRoomInput" placeholder="Nombre nueva sala...">
@@ -47,10 +50,10 @@
             <ul id="globalUsers" class="user-list"></ul>
         </div>
 
-        <button id="logoutBtn" class="btn-danger"><i class="fas fa-sign-out-alt"></i> Desconectar</button>
+        <button id="logoutBtn" class="btn-danger"><i class="fas fa-power-off"></i> Desconectar</button>
     </aside>
 
-    <main class="chat-main">
+    <main class="chat-main" id="chatMainPanel">
         <header class="chat-header">
             <h2 id="roomTitle">Sala: General</h2>
             <div class="search-history">
@@ -75,48 +78,88 @@
             
             <div id="emojiPicker" class="popup-picker"></div>
             <div id="gifPicker" class="popup-picker gif-picker">
-                <input type="text" id="gifSearch" placeholder="Buscar GIF...">
+                <input type="text" id="gifSearch" placeholder="Busca un GIF y presiona Enter...">
                 <div id="gifResults" class="gif-results"></div>
             </div>
             
             <input type="file" id="fileInput" style="display: none;" accept="image/*">
-            <label for="fileInput" class="btn-icon" title="Adjuntar Archivo"><i class="fas fa-paperclip"></i></label>
+            <label for="fileInput" class="btn-icon" title="Adjuntar"><i class="fas fa-paperclip"></i></label>
             
-            <input type="text" id="messageInput" placeholder="Escribe un mensaje o pega (Ctrl+V) una imagen..." autocomplete="off">
+            <input type="text" id="messageInput" placeholder="Escribe o pega (Ctrl+V) algo genial..." autocomplete="off">
             
-            <button type="button" id="voiceBtn" class="btn-icon voice-btn" title="Grabar nota de voz"><i class="fas fa-microphone"></i></button>
+            <button type="button" id="voiceBtn" class="btn-icon voice-btn" title="Grabar audio"><i class="fas fa-microphone"></i></button>
             <button type="submit" class="btn-send"><i class="fas fa-paper-plane"></i></button>
         </form>
     </main>
 </div>
 
+<div id="discordProfileModal" class="modal">
+    <div class="discord-profile-content">
+        <div class="discord-banner" id="dProfileBanner"></div>
+        <div class="discord-header">
+            <img id="dProfileAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
+            <h3 id="dProfileName">Usuario</h3>
+            <p id="dProfileStatus" class="discord-status">Sin estado</p>
+        </div>
+        <div class="discord-body">
+            <button id="dProfileDMBtn" class="btn-primary" style="width:100%; margin-bottom:15px;"><i class="fas fa-paper-plane"></i> Enviar Mensaje Privado</button>
+            <h4>Muro de Comentarios</h4>
+            <div class="discord-comments" id="dProfileComments"></div>
+            <div class="discord-comment-input">
+                <input type="text" id="dCommentText" placeholder="Escribe algo en su perfil...">
+                <button id="dCommentBtn" class="btn-primary"><i class="fas fa-comment"></i></button>
+            </div>
+        </div>
+        <button id="closeDiscordProfileBtn" class="discord-close-btn"><i class="fas fa-times"></i></button>
+    </div>
+</div>
+
 <div id="configModal" class="modal">
-    <div class="modal-content">
-        <h3>Tu Perfil y Diseño</h3>
+    <div class="modal-content config-scrollable">
+        <h3>Estética y Estado</h3>
         
         <div class="form-group" style="text-align: center;">
-            <label style="margin-bottom: 15px;">Foto de Perfil (Avatar)</label>
             <div class="avatar-edit">
                 <img id="avatarPreview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
-                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Subir nuevo Avatar</label>
+                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Subir Avatar</label>
             </div>
         </div>
 
         <div class="form-group">
-            <label>Color de tu nombre (Identidad)</label>
-            <input type="color" id="colorPicker" value="#2f81f7">
+            <label>Mi Estado Actual</label>
+            <input type="text" id="statusInput" placeholder="Ej: Estudiando, Jugando Warframe...">
         </div>
 
-        <div class="form-group" style="margin-top: 25px;">
-            <label style="margin-bottom: 10px;">Fondo de pantalla de la sala</label>
+        <div class="color-selectors">
+            <div class="form-group center-col">
+                <label>Color del Nombre</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="colorPicker" value="#2f81f7">
+                </div>
+            </div>
+            <div class="form-group center-col">
+                <label>Color de Burbuja</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="bubbleColorPicker" value="#2f81f7">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Transparencia de tu burbuja (<span id="opacityVal">100%</span>)</label>
+            <input type="range" id="bubbleOpacity" min="0.1" max="1" step="0.1" value="1" style="width:100%;">
+        </div>
+
+        <div class="form-group" style="margin-top: 20px;">
+            <label>Fondo de pantalla (Wallpaper de la sala)</label>
             <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
-            <label for="bgLocalInput" class="custom-file-upload"><i class="fas fa-image"></i> Seleccionar Fondo Local</label>
+            <label for="bgLocalInput" class="custom-file-upload"><i class="fas fa-image"></i> Cargar Wallpaper</label>
         </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 30px;">
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
             <button id="closeConfigBtn" class="btn-danger" style="flex: 1; margin: 0;">Cancelar</button>
-            <button id="saveConfigBtn" class="btn-primary" style="flex: 1; margin: 0;">Guardar Cambios</button>
+            <button id="saveConfigBtn" class="btn-primary" style="flex: 1; margin: 0;">Aplicar</button>
         </div>
     </div>
 </div>
