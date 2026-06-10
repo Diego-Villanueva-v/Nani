@@ -8,7 +8,6 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// Salas iniciales
 let activeRooms = [
     { id: 'General', name: 'General', creator: 'Sistema' },
     { id: 'Programación', name: 'Programación', creator: 'Sistema' },
@@ -17,48 +16,43 @@ let activeRooms = [
 
 let activeUsers = {}; 
 let profileComments = {}; 
-let roomHistory = {}; // Guarda el historial de mensajes por sala
+let roomHistory = {}; 
 
-// Lista de Super Administradores
-const SUPER_ADMINS = ['unknownlineof', 'Diego'];
+// Seguridad: El único super admin es este correo
+const SUPER_ADMIN_EMAIL = 'unknownlineof@gmail.com';
 
 io.on('connection', (socket) => {
     
     socket.on('joinRoom', (userData) => {
         if (activeUsers[socket.id]) socket.leave(activeUsers[socket.id].room);
         
+        // Verificamos si es el admin por su correo
+        userData.isAdmin = userData.email === SUPER_ADMIN_EMAIL;
+        
         socket.join(userData.room);
         activeUsers[socket.id] = userData;
-        
         io.emit('updateRooms', activeRooms);
         
-        // Enviar historial de la sala al usuario que acaba de entrar
-        if (!roomHistory[userData.room]) roomHistory[userData.room] = [];
-        socket.emit('loadHistory', roomHistory[userData.room]);
+        if (userData.room !== 'Lobby') {
+            if (!roomHistory[userData.room]) roomHistory[userData.room] = [];
+            socket.emit('loadHistory', roomHistory[userData.room]);
+        }
 
-        // Filtrar usuarios únicos por nombre para no repetir en UI
-        const getUniqueUsers = (usersArray) => {
-            const unique = {};
-            usersArray.forEach(u => unique[u.username] = u);
-            return Object.values(unique);
-        };
-
+        const getUniqueUsers = (arr) => Object.values(arr.reduce((acc, u) => ({...acc, [u.username]: u}), {}));
         io.to(userData.room).emit('updateUserList', getUniqueUsers(Object.values(activeUsers).filter(u => u.room === userData.room && !u.room.includes('_'))));
-        io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers)));
+        io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers).filter(u => u.room !== 'Lobby')));
     });
 
     socket.on('chatMessage', (data) => {
-        // Guardar en el historial (Límite 500 mensajes)
         if (!roomHistory[data.room]) roomHistory[data.room] = [];
-        data.msgId = Date.now().toString(); // ID único para poder eliminarlo
+        data.msgId = Date.now().toString(); 
         roomHistory[data.room].push(data);
         if (roomHistory[data.room].length > 500) roomHistory[data.room].shift();
-
         io.to(data.room).emit('message', data);
     });
 
-    socket.on('deleteMessage', ({ room, msgId, requester }) => {
-        if (SUPER_ADMINS.includes(requester)) {
+    socket.on('deleteMessage', ({ room, msgId, requesterEmail }) => {
+        if (requesterEmail === SUPER_ADMIN_EMAIL) {
             if (roomHistory[room]) {
                 roomHistory[room] = roomHistory[room].filter(m => m.msgId !== msgId);
                 io.to(room).emit('messageDeleted', msgId);
@@ -66,20 +60,34 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- SISTEMA DE PERFILES DISCORD ---
+    // --- PERFILES Y COMENTARIOS ---
     socket.on('getProfile', (targetUser) => {
         const user = Object.values(activeUsers).find(u => u.username === targetUser) || {};
         const comments = profileComments[targetUser] || [];
-        socket.emit('profileData', { username: targetUser, status: user.status, avatar: user.avatar, color: user.color, comments });
+        socket.emit('profileData', { 
+            username: targetUser, status: user.status, avatar: user.avatar, 
+            color: user.color, age: user.age, gender: user.gender, isAdmin: user.isAdmin, comments 
+        });
     });
 
     socket.on('addComment', ({ targetUser, from, text, time }) => {
         if(!profileComments[targetUser]) profileComments[targetUser] = [];
-        profileComments[targetUser].push({ from, text, time });
-        io.emit('newProfileComment', { targetUser, comment: { from, text, time } });
+        profileComments[targetUser].push({ id: Date.now().toString(), from, text, time });
+        io.emit('newProfileComment', { targetUser });
     });
 
-    // --- GESTIÓN DE SALAS ---
+    socket.on('deleteComment', ({ targetUser, commentId, requesterUser, requesterEmail }) => {
+        if (targetUser === requesterUser || requesterEmail === SUPER_ADMIN_EMAIL) {
+            if (profileComments[targetUser]) profileComments[targetUser] = profileComments[targetUser].filter(c => c.id !== commentId);
+            io.emit('newProfileComment', { targetUser });
+        }
+    });
+
+    // --- SISTEMA DE AMIGOS ---
+    socket.on('sendFriendRequest', ({ from, to }) => io.emit('friendRequestReceived', { from, to }));
+    socket.on('acceptFriendRequest', ({ from, to }) => io.emit('friendRequestAccepted', { from, to }));
+
+    // --- SALAS ---
     socket.on('createRoom', ({ roomName, creator }) => {
         if (!activeRooms.find(r => r.id === roomName) && roomName.trim() !== '') {
             activeRooms.push({ id: roomName, name: roomName, creator: creator });
@@ -87,15 +95,14 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('deleteRoom', ({ roomName, requester }) => {
+    socket.on('deleteRoom', ({ roomName, requesterUser, requesterEmail }) => {
         const room = activeRooms.find(r => r.id === roomName);
-        if (room && room.id !== 'General' && room.id !== 'Programación' && room.id !== 'Juegos') {
-            // Solo el creador o un Super Admin puede borrarla
-            if (room.creator === requester || SUPER_ADMINS.includes(requester)) {
+        if (room && !['General', 'Programación', 'Juegos'].includes(room.id)) {
+            if (room.creator === requesterUser || requesterEmail === SUPER_ADMIN_EMAIL) {
                 activeRooms = activeRooms.filter(r => r.id !== roomName);
                 delete roomHistory[roomName];
                 io.emit('updateRooms', activeRooms);
-                io.emit('forceLeaveRoom', roomName); // Obliga a todos a salir de esa sala
+                io.emit('forceLeaveRoom', roomName); 
             }
         }
     });
@@ -104,16 +111,12 @@ io.on('connection', (socket) => {
         const user = activeUsers[socket.id];
         if (user) {
             delete activeUsers[socket.id];
-            
-            const getUniqueUsers = (arr) => {
-                const uniq = {}; arr.forEach(u => uniq[u.username] = u); return Object.values(uniq);
-            };
-
+            const getUniqueUsers = (arr) => Object.values(arr.reduce((acc, u) => ({...acc, [u.username]: u}), {}));
             io.to(user.room).emit('updateUserList', getUniqueUsers(Object.values(activeUsers).filter(u => u.room === user.room && !u.room.includes('_'))));
-            io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers)));
+            io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers).filter(u => u.room !== 'Lobby')));
         }
     });
 });
 
 const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => console.log(`Nani? V3.0 Server (Synthwave) en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`Nani? V6.0 Server en puerto ${PORT}`));

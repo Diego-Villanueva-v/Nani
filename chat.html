@@ -2,119 +2,155 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nani? - Synthwave Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nani? - Chat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
 
+<div id="onboardingModal" class="modal onboarding" style="z-index: 9999;">
+    <div class="modal-content">
+        <h2 style="color: var(--accent); margin-bottom: 5px; text-align: center;" data-i18n="welcomeTo">¡Bienvenido a Nani!</h2>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 25px;" data-i18n="setupProfile">Configuremos tu perfil rápido.</p>
+        
+        <div class="form-group">
+            <label data-i18n="yourAge">¿Cuál es tu edad?</label>
+            <input type="number" id="onboardAge" placeholder="Ej: 21" min="13" max="100">
+        </div>
+        
+        <label style="display:block; color:var(--text-muted); font-size:0.85rem; font-weight:600; margin-bottom:10px; margin-top:20px;" data-i18n="selectGender">Selecciona tu género</label>
+        <div class="gender-selector">
+            <div class="gender-btn" data-gender="Masculino">🙋‍♂️ <span data-i18n="male">Masculino</span></div>
+            <div class="gender-btn" data-gender="Femenino">🙋‍♀️ <span data-i18n="female">Femenino</span></div>
+            <div class="gender-btn" data-gender="Otro">🦄 <span data-i18n="other">Otro</span></div>
+        </div>
+        
+        <button id="finishOnboardBtn" class="btn-primary" style="margin-top: 30px;" data-i18n="start">Empezar</button>
+    </div>
+</div>
+
 <div class="chat-layout">
-    <aside class="chat-sidebar" id="mobileSidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-header-left" style="cursor:pointer;" id="myProfileTrigger">
-                <div style="position: relative;">
-                    <img id="myMiniAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Avatar">
-                    <div class="status-indicator"></div>
-                </div>
-                <div class="user-info">
-                    <h3>Nani?</h3>
-                    <p id="currentUserDisplay">Cargando...</p>
-                </div>
-            </div>
-            <button id="configBtn" title="Ajustes y Diseño"><i class="fas fa-cog"></i></button>
-        </div>
 
-        <button id="savedMessagesBtn" class="saved-btn"><i class="fas fa-bookmark"></i> Mis Guardados</button>
-
-        <div class="room-selector">
-            <h4>Salas Públicas</h4>
-            
-            <div class="custom-dropdown" id="roomDropdown">
-                <div class="dropdown-header" id="dropdownHeader">
-                    <span id="selectedRoomText">General</span>
-                    <i class="fas fa-chevron-down"></i>
+    <main class="main-views-container">
+        <div id="viewLobby" class="app-view active">
+            <div class="lobby-content">
+                <i class="fas fa-meteor lobby-icon"></i>
+                <h2 data-i18n="discover">Explora Nani</h2>
+                <p data-i18n="lobbyDesc">Entra a las salas globales y conoce gente nueva.</p>
+                
+                <div class="room-selector-box">
+                    <h4 data-i18n="publicRooms" style="color:var(--text-muted); margin-bottom:10px; font-size:0.8rem; text-transform:uppercase;">Salas Públicas</h4>
+                    <div class="custom-dropdown" id="roomDropdown">
+                        <div class="dropdown-header" id="dropdownHeader">
+                            <span id="selectedRoomText">General</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <ul class="dropdown-list" id="dropdownList"></ul>
+                    </div>
+                    <button id="joinRoomBtn" class="btn-primary" style="width: 100%; margin-bottom:15px;" data-i18n="enterRoom">Entrar a la sala</button>
+                    
+                    <div class="create-room">
+                        <input type="text" id="newRoomInput" placeholder="Crear nueva sala...">
+                        <button id="createRoomBtn" class="btn-icon-small"><i class="fas fa-plus"></i></button>
+                    </div>
                 </div>
-                <ul class="dropdown-list" id="dropdownList"></ul>
-            </div>
-            
-            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                <button id="joinRoomBtn" class="btn-primary" style="flex: 1;">Entrar a la sala</button>
-                <button id="deleteRoomBtn" class="btn-icon-small" title="Eliminar sala" style="display:none; padding: 0 15px;"><i class="fas fa-trash"></i></button>
-            </div>
-            
-            <div class="create-room">
-                <input type="text" id="newRoomInput" placeholder="Nombre nueva sala...">
-                <button id="createRoomBtn" class="btn-icon-small" title="Crear"><i class="fas fa-plus"></i></button>
             </div>
         </div>
 
-        <div class="user-lists-container">
-            <h4><i class="fas fa-users"></i> En esta sala</h4>
-            <ul id="roomUsers" class="user-list"></ul>
-            
-            <h4 style="margin-top: 20px;"><i class="fas fa-globe"></i> Globales en línea</h4>
-            <ul id="globalUsers" class="user-list"></ul>
-        </div>
-
-        <button id="logoutBtn" class="btn-danger"><i class="fas fa-power-off"></i> Desconectar</button>
-    </aside>
-
-    <div id="mobileOverlay" class="sidebar-overlay"></div>
-
-    <main class="chat-main" id="chatMainPanel">
-        <header class="chat-header">
-            <div class="header-info" style="display: flex; align-items: center; gap: 15px;">
-                <button id="mobileMenuBtn" class="mobile-only-btn"><i class="fas fa-bars"></i></button>
-                <div>
+        <div id="viewChat" class="app-view">
+            <header class="chat-header">
+                <div class="header-info">
                     <h2 id="roomTitle">Cargando...</h2>
                     <small id="roomCreator" style="color: var(--text-muted); font-size: 0.8rem;"></small>
                 </div>
-            </div>
-            <div class="search-history">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="Buscar en la sala...">
-            </div>
-        </header>
+                <div style="display: flex; gap: 10px; align-items:center;">
+                    <div class="search-history hide-mobile">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar en la sala...">
+                    </div>
+                    <button id="deleteRoomBtn" class="btn-icon-small btn-danger-outline" style="display:none;" title="Borrar Sala"><i class="fas fa-trash"></i></button>
+                    <button id="leaveRoomBtn" class="btn-icon-small" title="Abandonar Sala"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
 
-        <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-messages" id="chatMessages"></div>
 
-        <div id="replyPreview" class="reply-preview">
-            <div class="reply-content">
-                <span id="replyName"></span>
-                <p id="replyText"></p>
+            <div id="replyPreview" class="reply-preview">
+                <div class="reply-content">
+                    <span id="replyName"></span>
+                    <p id="replyText"></p>
+                </div>
+                <button id="cancelReplyBtn"><i class="fas fa-times"></i></button>
             </div>
-            <button id="cancelReplyBtn"><i class="fas fa-times"></i></button>
+
+            <div id="unifiedPicker" class="unified-picker">
+                <div class="picker-tabs">
+                    <button class="picker-tab active" data-target="emojiSection">😀 <span class="hide-mobile">Emojis</span></button>
+                    <button class="picker-tab" data-target="gifSection">🎞️ <span class="hide-mobile">GIFs</span></button>
+                    <button class="picker-tab" data-target="stickerSection">⭐️ <span class="hide-mobile">Stickers</span></button>
+                </div>
+                
+                <div class="picker-content active" id="emojiSection">
+                    <div id="emojiPickerContent" class="emoji-grid"></div>
+                </div>
+                <div class="picker-content" id="gifSection">
+                    <div style="display: flex; gap: 5px; width: 100%; margin-bottom: 10px;">
+                        <input type="text" id="gifSearch" placeholder="Buscar GIF...">
+                        <button type="button" id="doGifSearchBtn" class="btn-primary" style="padding: 0 15px;"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div id="gifResults" class="media-grid"></div>
+                </div>
+                <div class="picker-content" id="stickerSection">
+                    <div id="stickerResults" class="media-grid"></div>
+                </div>
+            </div>
+
+            <form id="chatForm" class="chat-form">
+                <button type="button" id="toggleUnifiedPickerBtn" class="btn-icon"><i class="fas fa-smile"></i></button>
+                <input type="file" id="fileInput" style="display: none;" accept="image/*">
+                <label for="fileInput" class="btn-icon"><i class="fas fa-image"></i></label>
+                
+                <div class="input-chat-wrapper">
+                    <input type="text" id="messageInput" placeholder="Escribe o pega un mensaje..." autocomplete="off">
+                </div>
+                
+                <button type="button" id="voiceBtn" class="btn-icon voice-btn"><i class="fas fa-microphone"></i></button>
+                <button type="submit" class="btn-send"><i class="fas fa-paper-plane"></i></button>
+            </form>
         </div>
 
-        <div id="emojiPicker" class="popup-picker"></div>
-        <div id="gifPicker" class="popup-picker gif-picker">
-            <div style="display: flex; gap: 5px; width: 100%;">
-                <input type="text" id="gifSearch" placeholder="Busca un GIF...">
-                <button type="button" id="doGifSearchBtn" class="btn-primary" style="padding: 0 15px;"><i class="fas fa-search"></i></button>
+        <div id="viewFriends" class="app-view">
+            <div class="friends-container">
+                <h2 style="margin-bottom: 20px; color: #fff;" data-i18n="friends">Comunidad</h2>
+                <div class="friends-tabs">
+                    <button class="f-tab active" data-target="globalUsersList">Global</button>
+                    <button class="f-tab" data-target="roomUsersList">En esta Sala</button>
+                    <button class="f-tab" data-target="myFriendsList">Mis Amigos</button>
+                    <button class="f-tab" data-target="pendingRequestsList">Solicitudes</button>
+                </div>
+                <ul id="globalUsersList" class="f-list active"></ul>
+                <ul id="roomUsersList" class="f-list"></ul>
+                <ul id="myFriendsList" class="f-list"></ul>
+                <ul id="pendingRequestsList" class="f-list"></ul>
             </div>
-            <div id="gifResults" class="gif-results"></div>
-        </div>
-        <div id="stickerPicker" class="popup-picker gif-picker">
-            <h4 style="text-align: center; margin-bottom: 10px; color: var(--text-main);">Mis Stickers</h4>
-            <div id="stickerResults" class="gif-results"></div>
         </div>
 
-        <form id="chatForm" class="chat-form">
-            <button type="button" id="emojiBtn" class="btn-icon" title="Emojis"><i class="fas fa-smile"></i></button>
-            <button type="button" id="gifBtn" class="btn-icon" title="GIFs"><i class="fas fa-film"></i></button>
-            <button type="button" id="stickerBtn" class="btn-icon" title="Stickers Favoritos"><i class="fas fa-star"></i></button>
-            
-            <input type="file" id="fileInput" style="display: none;" accept="image/*">
-            <label for="fileInput" class="btn-icon" title="Adjuntar"><i class="fas fa-paperclip"></i></label>
-            
-            <input type="text" id="messageInput" placeholder="Mensaje..." autocomplete="off">
-            
-            <button type="button" id="voiceBtn" class="btn-icon voice-btn" title="Grabar audio"><i class="fas fa-microphone"></i></button>
-            <button type="submit" class="btn-send"><i class="fas fa-paper-plane"></i></button>
-        </form>
     </main>
+
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-view="viewLobby"><i class="fas fa-compass"></i><span>Inicio</span></button>
+        <button class="nav-item" data-view="viewFriends"><i class="fas fa-users"></i><span>Social</span></button>
+        <button class="nav-item" id="navMyProfileBtn"><i class="fas fa-user-circle"></i><span>Perfil</span></button>
+        <button class="nav-item" id="navSettingsBtn"><i class="fas fa-cog"></i><span>Ajustes</span></button>
+    </nav>
+</div>
+
+<div id="contextMenu" class="context-menu">
+    <button id="ctxReply"><i class="fas fa-reply"></i> <span data-i18n="ctxReply">Responder</span></button>
+    <button id="ctxSaveSticker"><i class="fas fa-star"></i> <span data-i18n="ctxSave">Guardar Sticker</span></button>
+    <button id="ctxDelete" class="danger-text"><i class="fas fa-trash"></i> <span data-i18n="ctxDelete">Eliminar</span></button>
 </div>
 
 <div id="lightboxModal" class="modal lightbox" onclick="this.classList.remove('active')">
@@ -125,65 +161,83 @@
     <div class="discord-profile-content">
         <div class="discord-banner" id="dProfileBanner"></div>
         <div class="discord-header">
-            <img id="dProfileAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
-            <h3 id="dProfileName">Usuario</h3>
-            <p id="dProfileStatus" class="discord-status">Sin estado</p>
+            <img id="dProfileAvatar" src="">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                <div>
+                    <h3 id="dProfileName">Usuario <i id="adminBadge" class="fas fa-check-circle" style="color:#38bdf8; font-size:1rem; display:none;" title="Super Admin"></i></h3>
+                    <span id="dProfileDetails" class="profile-details-badge"></span>
+                </div>
+            </div>
+            <p id="dProfileStatus" class="discord-status" style="margin-top:10px;"></p>
         </div>
         <div class="discord-body">
-            <button id="dProfileDMBtn" class="btn-primary" style="width:100%; margin-bottom:15px;"><i class="fas fa-paper-plane"></i> Mensaje Privado</button>
-            <h4 style="color: var(--text-main);">Muro de Comentarios</h4>
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje</button>
+                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
+            </div>
+            <h4 style="color: var(--text-main);" data-i18n="wall">Muro de Comentarios</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
-                <input type="text" id="dCommentText" placeholder="Escribe en su perfil...">
-                <button id="dCommentBtn" class="btn-primary"><i class="fas fa-comment"></i></button>
+                <input type="text" id="dCommentText" placeholder="Escribe algo...">
+                <button id="dCommentBtn" class="btn-primary" style="width: 45px;"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
         <button id="closeDiscordProfileBtn" class="discord-close-btn"><i class="fas fa-times"></i></button>
     </div>
 </div>
 
-<div id="configModal" class="modal">
+<div id="settingsModal" class="modal">
     <div class="modal-content config-scrollable">
-        <h3>Perfil</h3>
-        <div class="form-group" style="text-align: center;">
-            <div class="avatar-edit">
-                <img id="avatarPreview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
-                <input type="file" id="avatarInput" accept="image/*" style="display: none;">
-                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Avatar</label>
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Mi Estado Actual</label>
-            <input type="text" id="statusInput" placeholder="Ej: Estudiando, Jugando Warframe...">
-        </div>
-        <div class="color-selectors">
-            <div class="form-group center-col">
-                <label>Nombre</label>
-                <div class="color-picker-wrapper"><input type="color" id="colorPicker" value="#d946ef"></div>
-            </div>
-            <div class="form-group center-col">
-                <label>Burbuja</label>
-                <div class="color-picker-wrapper"><input type="color" id="bubbleColorPicker" value="#9333ea"></div>
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Transparencia de burbuja (<span id="opacityVal">100%</span>)</label>
-            <input type="range" id="bubbleOpacity" min="0.1" max="1" step="0.1" value="1" class="custom-range">
-        </div>
+        <h3 data-i18n="settingsTitle">Configuración</h3>
         
-        <div class="form-group" style="margin-top: 20px;">
-            <label>Fondo de pantalla del Chat</label>
-            <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
-            <div style="display: flex; gap: 10px;">
-                <label for="bgLocalInput" class="custom-file-upload" style="flex: 1; margin: 0;"><i class="fas fa-image"></i> Personalizar</label>
-                <button type="button" id="resetBgBtn" class="btn-danger" style="flex: 1; margin: 0; padding: 12px; border-radius: 12px; font-size: 0.9rem;"><i class="fas fa-undo"></i> Restablecer</button>
+        <div class="settings-section">
+            <h4 data-i18n="setAppearance">Apariencia y Perfil</h4>
+            <div class="form-group" style="text-align: center; margin-bottom: 10px;">
+                <img id="avatarPreview" src="" style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px; border:2px solid var(--accent);">
+                <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> <span data-i18n="changeAvatar">Cambiar Avatar</span></label>
+            </div>
+            <div class="form-group">
+                <input type="text" id="statusInput" placeholder="Mi Estado Actual...">
+            </div>
+            <div class="color-selectors">
+                <div class="center-col"><label data-i18n="colorName">Nombre</label><div class="color-picker-wrapper"><input type="color" id="colorPicker"></div></div>
+                <div class="center-col"><label data-i18n="colorBubble">Burbuja</label><div class="color-picker-wrapper"><input type="color" id="bubbleColorPicker"></div></div>
+            </div>
+            <div class="form-group">
+                <label><span data-i18n="transparency">Transparencia</span> (<span id="opacityVal"></span>)</label>
+                <input type="range" id="bubbleOpacity" min="0.1" max="1" step="0.1" class="custom-range">
+            </div>
+            <div class="form-group">
+                <label data-i18n="wallpaper">Fondo del Chat</label>
+                <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
+                <div style="display: flex; gap: 5px;">
+                    <label for="bgLocalInput" class="custom-file-upload" style="flex:1; margin:0;"><i class="fas fa-image"></i> Personalizar</label>
+                    <button type="button" id="resetBgBtn" class="btn-danger-outline" style="flex:1; border-radius:12px;"><i class="fas fa-undo"></i> Por Defecto</button>
+                </div>
             </div>
         </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 30px;">
-            <button id="closeConfigBtn" class="btn-danger" style="flex: 1; margin: 0;">Cerrar</button>
-            <button id="saveConfigBtn" class="btn-primary" style="flex: 1; margin: 0;">Aplicar</button>
+        <div class="settings-section">
+            <h4 data-i18n="setSystem">Sistema</h4>
+            <div class="toggle-row">
+                <span data-i18n="notifications">Notificaciones</span>
+                <input type="checkbox" id="notifToggle" class="toggle-switch" checked>
+            </div>
+            <div class="toggle-row">
+                <span data-i18n="vibration">Vibración</span>
+                <input type="checkbox" id="vibToggle" class="toggle-switch" checked>
+            </div>
         </div>
+
+        <div class="settings-section" style="text-align: center; color:var(--text-muted); font-size:0.85rem;">
+            <p><strong>Nani? V6.0</strong></p>
+            <p data-i18n="support">Soporte: unknownlineof@gmail.com</p>
+            <p style="margin-top: 15px; cursor:pointer; display:inline-block;" id="logoutBtnCtx" class="danger-text"><i class="fas fa-power-off"></i> <span data-i18n="logout">Cerrar Sesión</span></p>
+        </div>
+
+        <button id="saveConfigBtn" class="btn-primary" style="width: 100%; margin-top: 10px;" data-i18n="save">Guardar Cambios</button>
+        <button onclick="document.getElementById('settingsModal').classList.remove('active')" class="btn-danger" style="width: 100%; margin-top: 10px; background: transparent;" data-i18n="close">Cerrar</button>
     </div>
 </div>
 
@@ -192,7 +246,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
       apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
@@ -204,21 +258,23 @@
   };
 
   const app = initializeApp(firebaseConfig);
-  window.auth = getAuth(app);
-  window.db = getFirestore(app);
-  window.doc = doc;
-  window.getDoc = getDoc;
+  window.auth = getAuth(app); window.db = getFirestore(app); window.doc = doc; window.getDoc = getDoc; window.setDoc = setDoc;
 
   onAuthStateChanged(window.auth, async (user) => {
       if (!user) { window.location.href = 'index.html'; } else {
+          window.currentUserUid = user.uid;
+          window.currentUserEmail = user.email; // Clave para Super Admin
+          
           const docSnap = await getDoc(doc(window.db, "usuarios", user.uid));
-          window.currentUsername = docSnap.exists() ? docSnap.data().username : user.email.split('@')[0];
-          document.getElementById('currentUserDisplay').textContent = window.currentUsername;
+          if (docSnap.exists()) {
+              window.currentUsername = docSnap.data().username;
+              window.userCloudData = docSnap.data(); 
+          } else { window.currentUsername = user.email.split('@')[0]; window.userCloudData = {}; }
           document.dispatchEvent(new Event('userReady'));
       }
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
+  document.getElementById('logoutBtnCtx').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
 </script>
 <script src="chat.js"></script>
 </body>
