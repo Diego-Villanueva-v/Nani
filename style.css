@@ -34,7 +34,6 @@
 
 body { 
     background-color: var(--bg-main); 
-    /* El %3F es el código para el signo de interrogación ? en URLs */
     background-image: url('Nani.jpg'); 
     background-size: cover; 
     background-position: center; 
@@ -126,7 +125,7 @@ body {
 .mobile-only-btn { display: none; background: transparent; border: none; color: var(--text-main); font-size: 1.5rem; cursor: pointer; }
 
 /* BURBUJAS */
-.chat-messages { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background-image: url('Nani%3F.jpg'); background-size: cover; background-position: center; }
+.chat-messages { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background-image: url('Nane.jpg'); background-size: cover; background-position: center; }
 .message { background: var(--other-msg); padding: 12px 18px; border-radius: 18px 18px 18px 4px; max-width: 65%; align-self: flex-start; position: relative; backdrop-filter: blur(8px);}
 .message.my-message { color: #fff; border-radius: 18px 18px 4px 18px; align-self: flex-end; border: none !important; box-shadow: 0 5px 20px rgba(0,0,0,0.3);}
 .message.type-image { background: transparent !important; padding: 0 !important; border: none !important; box-shadow: none !important; backdrop-filter: none; }
