@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Nani? - Chat</title>
+    <title>Nani? - Chat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -74,7 +74,7 @@
                         <i class="fas fa-search"></i>
                         <input type="text" id="searchInput" placeholder="Buscar en la sala...">
                     </div>
-                    <button id="deleteRoomBtn" class="btn-icon-small btn-danger-outline" style="display:none;" title="Borrar Sala"><i class="fas fa-trash"></i></button>
+                    <button id="deleteRoomBtn" class="btn-danger-outline" style="display:none; padding: 8px 12px; border-radius: 12px;" title="Borrar Sala"><i class="fas fa-trash"></i></button>
                     <button id="leaveRoomBtn" class="btn-icon-small" title="Abandonar Sala"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </header>
@@ -86,7 +86,7 @@
                     <span id="replyName"></span>
                     <p id="replyText"></p>
                 </div>
-                <button id="cancelReplyBtn"><i class="fas fa-times"></i></button>
+                <button id="cancelReplyBtn" class="btn-icon" style="padding:0; width:auto; height:auto;"><i class="fas fa-times"></i></button>
             </div>
 
             <div id="unifiedPicker" class="unified-picker">
@@ -99,7 +99,7 @@
                 <div class="picker-content" id="gifSection">
                     <div style="display: flex; gap: 5px; width: 100%; margin-bottom: 10px;">
                         <input type="text" id="gifSearch" placeholder="Buscar GIF...">
-                        <button type="button" id="doGifSearchBtn" class="btn-primary" style="padding: 0 15px;"><i class="fas fa-search"></i></button>
+                        <button type="button" id="doGifSearchBtn" class="btn-primary" style="padding: 0 15px; width: auto;"><i class="fas fa-search"></i></button>
                     </div>
                     <div id="gifResults" class="media-grid"></div>
                 </div>
@@ -109,7 +109,7 @@
             <form id="chatForm" class="chat-form">
                 <button type="button" id="toggleUnifiedPickerBtn" class="btn-icon"><i class="fas fa-smile"></i></button>
                 <input type="file" id="fileInput" style="display: none;" accept="image/*">
-                <label for="fileInput" class="btn-icon"><i class="fas fa-image"></i></label>
+                <label for="fileInput" class="btn-icon" style="cursor:pointer;"><i class="fas fa-image"></i></label>
                 
                 <div class="input-chat-wrapper">
                     <input type="text" id="messageInput" placeholder="Escribe o pega un mensaje..." autocomplete="off">
@@ -172,7 +172,7 @@
                 <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje</button>
                 <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
             </div>
-            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro</h4>
+            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro de Comentarios</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
                 <input type="text" id="dCommentText" placeholder="Escribe algo...">
@@ -192,7 +192,7 @@
             <div class="form-group" style="text-align: center; margin-bottom: 15px;">
                 <img id="avatarPreview" src="" style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px; border:2px solid var(--accent);">
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
-                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Avatar</label>
+                <label for="avatarInput" class="custom-file-upload" style="width:auto; display:inline-block;"><i class="fas fa-camera"></i> Cambiar Avatar</label>
             </div>
             <div class="form-group">
                 <input type="text" id="statusInput" placeholder="Mi Estado Actual...">
@@ -209,8 +209,8 @@
                 <label>Fondo de Pantalla Local</label>
                 <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
                 <div style="display: flex; gap: 5px;">
-                    <label for="bgLocalInput" class="custom-file-upload" style="flex:1; margin:0;"><i class="fas fa-image"></i> Cargar</label>
-                    <button type="button" id="resetBgBtn" class="btn-danger-outline" style="flex:1;"><i class="fas fa-undo"></i> Reset</button>
+                    <label for="bgLocalInput" class="custom-file-upload" style="flex:1; margin:0;"><i class="fas fa-image"></i> Personalizar</label>
+                    <button type="button" id="resetBgBtn" class="btn-danger-outline" style="flex:1; border-radius:12px;"><i class="fas fa-undo"></i> Reset</button>
                 </div>
             </div>
         </div>
@@ -228,7 +228,7 @@
         </div>
 
         <div class="settings-section" style="border: none; margin-bottom: 0; padding-bottom: 0;">
-            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Nani? Depurada V7.0</p>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Nani? V7.0</p>
             <a href="mailto:unknownlineof@gmail.com" class="btn-primary-outline" style="display: block; text-align: center; text-decoration: none; margin-bottom: 10px;"><i class="fas fa-envelope"></i> Soporte Técnico</a>
             <button id="logoutBtnCtx" class="btn-danger" style="width: 100%;"><i class="fas fa-power-off"></i> Cerrar Sesión</button>
         </div>
@@ -273,9 +273,8 @@
       }
   });
 
-  // Asegurar que el evento de logout se asigne al cargar el DOM
   document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('logoutBtnCtx').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
+      document.getElementById('logoutBtnCtx').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
   });
 </script>
 <script src="chat.js"></script>
