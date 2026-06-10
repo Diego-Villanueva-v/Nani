@@ -8,9 +8,9 @@ document.addEventListener('userReady', () => {
     const messageInput = document.getElementById('messageInput');
     const roomTitle = document.getElementById('roomTitle');
     const roomCreatorDisplay = document.getElementById('roomCreator');
-    const roomSelect = document.getElementById('roomSelect');
     
-    let currentRoom = ''; // Inicia vacío para forzar la entrada a General
+    let currentRoom = ''; 
+    let selectedRoomToJoin = 'General'; 
     let currentRoomsData = [];
     let replyingTo = null; 
     let isRecording = false;
@@ -25,7 +25,7 @@ document.addEventListener('userReady', () => {
     let userBubbleOpacity = localStorage.getItem('chatUserOpacity') || '0.9';
     let userStatus = localStorage.getItem('chatUserStatus') || 'Disponible';
     let userAvatar = localStorage.getItem('chatUserAvatar') || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-    let chatBg = localStorage.getItem('chatBgLocal') || '';
+    let chatBg = localStorage.getItem('chatBgLocal') || 'Nane.jpg'; // FONDO POR DEFECTO A NANE.JPG
     
     document.getElementById('myMiniAvatar').src = userAvatar;
     document.getElementById('avatarPreview').src = userAvatar;
@@ -34,7 +34,7 @@ document.addEventListener('userReady', () => {
     document.getElementById('bubbleColorPicker').value = userBubbleColor;
     document.getElementById('bubbleOpacity').value = userBubbleOpacity;
     document.getElementById('opacityVal').textContent = `${Math.round(userBubbleOpacity * 100)}%`;
-    if (chatBg) chatMessages.style.backgroundImage = `url(${chatBg})`;
+    if (chatBg) chatMessages.style.backgroundImage = `url('${chatBg}')`;
 
     const hexToRgba = (hex, opacity) => {
         let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
@@ -74,6 +74,16 @@ document.addEventListener('userReady', () => {
     document.getElementById('mobileMenuBtn').addEventListener('click', toggleMobileMenu);
     mobileOverlay.addEventListener('click', toggleMobileMenu);
 
+    // --- DROPDOWN PERSONALIZADO ---
+    const dropdownHeader = document.getElementById('dropdownHeader');
+    const dropdownList = document.getElementById('dropdownList');
+    const selectedRoomText = document.getElementById('selectedRoomText');
+
+    dropdownHeader.addEventListener('click', () => dropdownList.classList.toggle('show'));
+    document.addEventListener('click', (e) => {
+        if(!e.target.closest('.custom-dropdown')) dropdownList.classList.remove('show');
+    });
+
     // --- TRANSICIÓN DE SALAS ---
     const checkRoomAdmin = (roomName) => {
         const roomData = currentRoomsData.find(r => r.id === roomName);
@@ -88,7 +98,7 @@ document.addEventListener('userReady', () => {
     };
 
     const switchRoom = (newRoom, titleText) => {
-        if(currentRoom === newRoom) return; // Evitar recargas innecesarias
+        if(currentRoom === newRoom) return; 
         document.getElementById('chatMainPanel').style.opacity = 0;
         setTimeout(() => {
             currentRoom = newRoom;
@@ -96,7 +106,6 @@ document.addEventListener('userReady', () => {
             chatMessages.innerHTML = ''; 
             sendUserData();
             document.getElementById('chatMainPanel').style.opacity = 1;
-            // Cerrar menú móvil si está abierto
             if(window.innerWidth <= 850) { mobileSidebar.classList.remove('active'); mobileOverlay.classList.remove('active'); }
         }, 200);
     };
@@ -108,7 +117,7 @@ document.addEventListener('userReady', () => {
         }
     });
 
-    document.getElementById('joinRoomBtn').addEventListener('click', () => switchRoom(roomSelect.value, `Sala: ${roomSelect.value}`));
+    document.getElementById('joinRoomBtn').addEventListener('click', () => switchRoom(selectedRoomToJoin, `Sala: ${selectedRoomToJoin}`));
     document.getElementById('savedMessagesBtn').addEventListener('click', () => switchRoom(`${window.currentUsername}_saved`, `<i class="fas fa-bookmark" style="color:${userColor};"></i> Mis Guardados`));
     
     document.getElementById('deleteRoomBtn').addEventListener('click', () => {
@@ -123,37 +132,62 @@ document.addEventListener('userReady', () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     });
 
-    // --- CONFIGURACIÓN EN TIEMPO REAL ---
+    // --- CONFIGURACIÓN EN TIEMPO REAL Y FONDO ---
     document.getElementById('bubbleOpacity').addEventListener('input', (e) => document.getElementById('opacityVal').textContent = `${Math.round(e.target.value * 100)}%`);
     document.getElementById('configBtn').addEventListener('click', () => document.getElementById('configModal').classList.add('active'));
     document.getElementById('myProfileTrigger').addEventListener('click', () => document.getElementById('configModal').classList.add('active'));
     document.getElementById('closeConfigBtn').addEventListener('click', () => document.getElementById('configModal').classList.remove('active'));
     
     document.getElementById('avatarInput').addEventListener('change', (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 250, (b64) => { document.getElementById('avatarPreview').src = b64; userAvatar = b64; }); });
-    document.getElementById('bgLocalInput').addEventListener('change', (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 1200, (b64) => chatBg = b64); });
+    
+    // Al subir un fondo personalizado
+    document.getElementById('bgLocalInput').addEventListener('change', (e) => { 
+        if(e.target.files[0]) compressImage(e.target.files[0], 1200, (b64) => {
+            chatBg = b64; 
+            chatMessages.style.backgroundImage = `url('${chatBg}')`; // Se ve en vivo
+        }); 
+    });
+
+    // NUEVO: Restablecer fondo a Nane.jpg
+    document.getElementById('resetBgBtn').addEventListener('click', () => {
+        chatBg = 'Nane.jpg';
+        chatMessages.style.backgroundImage = `url('${chatBg}')`;
+        localStorage.setItem('chatBgLocal', chatBg);
+    });
     
     document.getElementById('saveConfigBtn').addEventListener('click', () => {
-        userColor = document.getElementById('colorPicker').value; userBubbleColor = document.getElementById('bubbleColorPicker').value;
-        userBubbleOpacity = document.getElementById('bubbleOpacity').value; userStatus = document.getElementById('statusInput').value || 'Disponible';
-        localStorage.setItem('chatUserColor', userColor); localStorage.setItem('chatUserBubble', userBubbleColor); localStorage.setItem('chatUserOpacity', userBubbleOpacity);
-        localStorage.setItem('chatUserStatus', userStatus); localStorage.setItem('chatUserAvatar', userAvatar); localStorage.setItem('chatBgLocal', chatBg);
+        userColor = document.getElementById('colorPicker').value; 
+        userBubbleColor = document.getElementById('bubbleColorPicker').value;
+        userBubbleOpacity = document.getElementById('bubbleOpacity').value; 
+        userStatus = document.getElementById('statusInput').value || 'Disponible';
+
+        localStorage.setItem('chatUserColor', userColor); 
+        localStorage.setItem('chatUserBubble', userBubbleColor); 
+        localStorage.setItem('chatUserOpacity', userBubbleOpacity);
+        localStorage.setItem('chatUserStatus', userStatus); 
+        localStorage.setItem('chatUserAvatar', userAvatar); 
+        localStorage.setItem('chatBgLocal', chatBg); // Guarda el fondo (custom o Nane)
         
         document.getElementById('myMiniAvatar').src = userAvatar; 
-        chatMessages.style.backgroundImage = chatBg ? `url(${chatBg})` : 'none';
         
-        // Actualizar burbujas en tiempo real
-        document.querySelectorAll('.my-message:not(.type-image)').forEach(msg => {
-            msg.style.background = hexToRgba(userBubbleColor, userBubbleOpacity);
+        // REESCRITURA DE BURBUJAS EN VIVO
+        document.querySelectorAll('.my-message').forEach(msg => {
+            if (!msg.classList.contains('type-image')) {
+                msg.style.background = hexToRgba(userBubbleColor, userBubbleOpacity);
+            }
+            const nameSpan = msg.querySelector('.msg-header span');
+            if(nameSpan) nameSpan.style.color = userColor;
         });
 
-        sendUserData(); document.getElementById('configModal').classList.remove('active');
+        sendUserData(); 
+        document.getElementById('configModal').classList.remove('active');
     });
 
     // --- SISTEMA DE STICKERS ---
     const updateStickerMenu = () => {
         document.getElementById('stickerResults').innerHTML = myStickers.map(url => `
             <img src="${url}" onclick="sendSticker('${url}')">
-        `).join('') || '<p style="color:#888;">No tienes stickers guardados. Toca la estrellita en cualquier imagen del chat.</p>';
+        `).join('') || '<p style="color:var(--text-muted);">No tienes stickers guardados. Toca la estrellita en cualquier imagen del chat.</p>';
     };
     
     window.saveSticker = (url) => {
@@ -161,7 +195,7 @@ document.addEventListener('userReady', () => {
             myStickers.push(url);
             localStorage.setItem('chatUserStickers', JSON.stringify(myStickers));
             updateStickerMenu();
-            alert("¡Sticker guardado!");
+            alert("¡Sticker guardado exitosamente!");
         }
     };
 
@@ -178,7 +212,7 @@ document.addEventListener('userReady', () => {
         
         const dmBtn = document.getElementById('dProfileDMBtn');
         if(data.username === window.currentUsername) {
-            dmBtn.style.display = 'none'; // No te puedes mandar DM a ti mismo desde aquí
+            dmBtn.style.display = 'none';
         } else {
             dmBtn.style.display = 'block';
             dmBtn.onclick = () => { document.getElementById('discordProfileModal').classList.remove('active'); switchRoom([window.currentUsername, data.username].sort().join('_'), `<i class="fas fa-lock" style="color:${data.color};"></i> DM: ${data.username}`); };
@@ -189,7 +223,7 @@ document.addEventListener('userReady', () => {
     
     const renderComments = (comments) => {
         const wall = document.getElementById('dProfileComments');
-        wall.innerHTML = comments.map(c => `<div class="d-comment"><b style="color:var(--accent);">${c.from}</b> <span>${c.time}</span><p>${c.text}</p></div>`).join('') || '<p style="color:#888;">No hay comentarios.</p>';
+        wall.innerHTML = comments.map(c => `<div class="d-comment"><b style="color:var(--accent);">${c.from}</b> <span>${c.time}</span><p>${c.text}</p></div>`).join('') || '<p style="color:var(--text-muted);">No hay comentarios.</p>';
         wall.scrollTop = wall.scrollHeight;
     };
     document.getElementById('dCommentBtn').addEventListener('click', () => {
@@ -202,13 +236,23 @@ document.addEventListener('userReady', () => {
     // --- SALAS Y USUARIOS ---
     socket.on('updateRooms', (rooms) => {
         currentRoomsData = rooms;
-        roomSelect.innerHTML = '';
+        dropdownList.innerHTML = '';
         rooms.forEach(room => {
             if(!room.id.includes('_')) { 
-                const option = document.createElement('option');
-                option.value = room.id; option.textContent = room.name;
-                if(room.id === currentRoom) option.selected = true;
-                roomSelect.appendChild(option);
+                const li = document.createElement('li');
+                li.textContent = room.name;
+                if(room.id === selectedRoomToJoin) {
+                    li.classList.add('active');
+                    selectedRoomText.textContent = room.name;
+                }
+                li.addEventListener('click', () => {
+                    selectedRoomToJoin = room.id;
+                    selectedRoomText.textContent = room.name;
+                    dropdownList.querySelectorAll('li').forEach(item => item.classList.remove('active'));
+                    li.classList.add('active');
+                    dropdownList.classList.remove('show');
+                });
+                dropdownList.appendChild(li);
             }
         });
         checkRoomAdmin(currentRoom);
@@ -221,7 +265,7 @@ document.addEventListener('userReady', () => {
             <li onclick="openProfile('${u.username}')" class="list-user-item">
                 <img src="${u.avatar}">
                 <div class="user-list-info">
-                    <span style="color:${u.color}; font-weight:700;">
+                    <span style="color:${isMe ? userColor : u.color}; font-weight:700;">
                         ${u.username} ${isMe ? '<span style="color:var(--text-muted); font-weight:normal; font-size:0.8rem;">(Tú)</span>' : ''}
                     </span>
                     <small>${u.status}</small>
@@ -237,7 +281,7 @@ document.addEventListener('userReady', () => {
             <li onclick="openProfile('${u.username}')" class="list-user-item">
                 <div class="status-dot"></div><img src="${u.avatar}">
                 <div class="user-list-info">
-                    <span style="color:${u.color || '#fff'}; font-weight:700;">
+                    <span style="color:${isMe ? userColor : (u.color || 'var(--text-main)')}; font-weight:700;">
                         ${u.username} ${isMe ? '<span style="color:var(--text-muted); font-weight:normal; font-size:0.8rem;">(Tú)</span>' : ''}
                     </span>
                     <small>${u.room.includes('_') ? 'En Privado' : u.room}</small>
@@ -251,7 +295,7 @@ document.addEventListener('userReady', () => {
         if(newRoom) {
             socket.emit('createRoom', { roomName: newRoom, creator: window.currentUsername });
             document.getElementById('newRoomInput').value = '';
-            setTimeout(() => switchRoom(newRoom, `Sala: ${newRoom}`), 300);
+            setTimeout(() => { selectedRoomToJoin = newRoom; switchRoom(newRoom, `Sala: ${newRoom}`); }, 300);
         }
     });
 
@@ -303,26 +347,30 @@ document.addEventListener('userReady', () => {
         
         div.className = `message ${isMe ? 'my-message' : ''} ${message.type === 'image' ? 'type-image' : ''}`;
         
-        if (message.type !== 'image' && message.bubbleBg) {
-            div.style.background = hexToRgba(message.bubbleBg, message.bubbleOpacity || 1);
-            if (!isMe) div.style.border = `1px solid ${message.bubbleBg}`;
+        const currentBubbleBg = isMe ? userBubbleColor : (message.bubbleBg || '#9333ea');
+        const currentOpacity = isMe ? userBubbleOpacity : (message.bubbleOpacity || 1);
+        const currentNameColor = isMe ? userColor : message.color;
+
+        if (message.type !== 'image') {
+            div.style.background = hexToRgba(currentBubbleBg, currentOpacity);
+            if (!isMe) div.style.border = `1px solid ${currentBubbleBg}`;
         }
 
         let replyHTML = '';
-        if (message.reply) replyHTML = `<div class="quoted-message" style="border-left-color: ${isMe ? '#fff' : message.color};"><strong style="color: ${isMe ? '#fff' : message.color};">${message.reply.username}</strong><p>${message.reply.text.startsWith('data:image') || message.reply.text.startsWith('http') ? '📷 Imagen / GIF' : message.reply.text}</p></div>`;
+        if (message.reply) replyHTML = `<div class="quoted-message" style="border-left-color: ${isMe ? '#fff' : currentNameColor};"><strong style="color: ${isMe ? '#fff' : currentNameColor};">${message.reply.username}</strong><p>${message.reply.text.startsWith('data:image') || message.reply.text.startsWith('http') ? '📷 Imagen / GIF' : message.reply.text}</p></div>`;
 
         let content = '';
         if (message.type === 'image') content = `<img src="${message.text}" class="msg-image" onclick="previewImage('${message.text}')">`;
         else if (message.type === 'audio') content = `<audio controls src="${message.text}" class="msg-audio"></audio>`;
         else content = `<p class="text">${message.text}</p>`;
 
-        const deleteBtn = isSuperAdmin ? `<button class="reply-btn" style="color: #f85149;" onclick="deleteMessage('${message.msgId}')"><i class="fas fa-trash"></i></button>` : '';
+        const deleteBtn = isSuperAdmin ? `<button class="reply-btn" style="color: #ef4444;" onclick="deleteMessage('${message.msgId}')"><i class="fas fa-trash"></i></button>` : '';
         const stickerBtn = message.type === 'image' ? `<button class="reply-btn" style="color: #fbbf24;" onclick="saveSticker('${message.text}')" title="Guardar Sticker"><i class="fas fa-star"></i></button>` : '';
 
         div.innerHTML = `
             <div class="msg-header">
                 <img src="${message.avatar}" class="msg-avatar">
-                <span style="color: ${message.color}; font-weight: 800;">${message.username}</span>
+                <span style="color: ${currentNameColor}; font-weight: 800;">${message.username}</span>
             </div>
             ${replyHTML}
             ${content}
@@ -346,8 +394,8 @@ document.addEventListener('userReady', () => {
         if (!isRecording) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream); audioChunks = [];
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = []; mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                 mediaRecorder.onstop = () => { const reader = new FileReader(); reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' })); reader.onloadend = () => enviarMensaje(reader.result, 'audio'); };
                 mediaRecorder.start(); isRecording = true; voiceBtn.classList.add('recording');
             } catch (err) { alert("Permite el micrófono."); }
@@ -364,8 +412,8 @@ document.addEventListener('userReady', () => {
     const togglePicker = (id) => {
         const picker = document.getElementById(id);
         const isActive = picker.classList.contains('active');
-        hidePickers(); // Oculta todos
-        if (!isActive) picker.classList.add('active'); // Abre si estaba cerrado
+        hidePickers(); 
+        if (!isActive) picker.classList.add('active'); 
     };
 
     document.getElementById('cancelReplyBtn').addEventListener('click', () => { replyingTo = null; document.getElementById('replyPreview').classList.remove('active'); });
@@ -377,7 +425,7 @@ document.addEventListener('userReady', () => {
 
     const performGifSearch = async () => {
         const term = document.getElementById('gifSearch').value.trim(); if (!term) return;
-        const results = document.getElementById('gifResults'); results.innerHTML = '<p style="color:#888;">Buscando...</p>';
+        const results = document.getElementById('gifResults'); results.innerHTML = '<p style="color:var(--text-muted);">Buscando...</p>';
         try {
             const res = await fetch(`https://g.tenor.com/v1/search?q=${term}&key=LIVDSRZULELA&limit=8`); const data = await res.json();
             results.innerHTML = data.results.length === 0 ? '<p>No hay resultados.</p>' : '';
@@ -386,7 +434,7 @@ document.addEventListener('userReady', () => {
                 img.onclick = () => { enviarMensaje(gif.media[0].gif.url, 'image'); hidePickers(); document.getElementById('gifSearch').value = ''; };
                 results.appendChild(img);
             });
-        } catch (error) { results.innerHTML = '<p style="color:red;">Error al buscar.</p>'; }
+        } catch (error) { results.innerHTML = '<p style="color:var(--danger);">Error al buscar.</p>'; }
     };
     document.getElementById('gifSearch').addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); performGifSearch(); }});
     document.getElementById('doGifSearchBtn').addEventListener('click', performGifSearch);
@@ -397,7 +445,5 @@ document.addEventListener('userReady', () => {
     });
 
     // INGRESO AUTOMÁTICO A GENERAL
-    setTimeout(() => {
-        switchRoom('General', 'Sala: General');
-    }, 500);
+    setTimeout(() => { switchRoom('General', 'Sala: General'); }, 500);
 });
