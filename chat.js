@@ -200,21 +200,36 @@ document.addEventListener('userReady', () => {
     });
 
     socket.on('updateUserList', (users) => {
-        document.getElementById('roomUsers').innerHTML = users.map(u => `
+        document.getElementById('roomUsers').innerHTML = users.map(u => {
+            const isMe = u.username === window.currentUsername;
+            return `
             <li onclick="openProfile('${u.username}')" class="list-user-item">
                 <img src="${u.avatar}">
-                <div class="user-list-info"><span style="color:${u.color}; font-weight:700;">${u.username}</span><small>${u.status}</small></div>
+                <div class="user-list-info">
+                    <span style="color:${u.color}; font-weight:700;">
+                        ${u.username} ${isMe ? '<span style="color:var(--text-muted); font-weight:normal; font-size:0.8rem;">(Tú)</span>' : ''}
+                    </span>
+                    <small>${u.status || 'Disponible'}</small>
+                </div>
             </li>
-        `).join('');
+        `}).join('');
     });
 
     socket.on('updateGlobalUsers', (users) => {
-        document.getElementById('globalUsers').innerHTML = users.map(u => `
+        document.getElementById('globalUsers').innerHTML = users.map(u => {
+            const isMe = u.username === window.currentUsername;
+            return `
             <li onclick="openProfile('${u.username}')" class="list-user-item">
-                <div class="status-dot"></div><img src="${u.avatar}">
-                <div class="user-list-info"><span style="color:${u.color || '#fff'}; font-weight:700;">${u.username}</span><small>${u.room.includes('_') ? 'En Privado' : u.room}</small></div>
+                <div class="status-dot"></div>
+                <img src="${u.avatar}">
+                <div class="user-list-info">
+                    <span style="color:${u.color || '#fff'}; font-weight:700;">
+                        ${u.username} ${isMe ? '<span style="color:var(--text-muted); font-weight:normal; font-size:0.8rem;">(Tú)</span>' : ''}
+                    </span>
+                    <small>${u.room.includes('_') ? 'En Privado' : u.room}</small>
+                </div>
             </li>
-        `).join('');
+        `}).join('');
     });
 
     document.getElementById('createRoomBtn').addEventListener('click', () => {
