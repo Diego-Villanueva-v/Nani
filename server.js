@@ -5,60 +5,57 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors());
-
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: { origin: "*", methods: ["GET", "POST"] }
-});
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Lista de salas globales en memoria
 let activeRooms = ['General', 'Programación', 'Juegos', 'Gatos Tuxedo'];
+let activeUsers = {}; // { socketId: { username, room, color } }
 
 io.on('connection', (socket) => {
-    console.log('Un usuario se conectó:', socket.id);
-
-    // Enviar las salas disponibles apenas alguien entra
-    socket.emit('updateRooms', activeRooms);
-
-    // Unirse a una sala temática
-    socket.on('joinRoom', ({ username, room }) => {
+    // Cuando un usuario entra o cambia de sala
+    socket.on('joinRoom', ({ username, room, color }) => {
+        if (activeUsers[socket.id]) {
+            socket.leave(activeUsers[socket.id].room);
+        }
+        
         socket.join(room);
-        socket.emit('message', { username: 'Sistema', text: `¡Bienvenido a la sala ${room}, ${username}!`, time: new Date().toLocaleTimeString() });
-        socket.broadcast.to(room).emit('message', { username: 'Sistema', text: `${username} se ha unido al chat.`, time: new Date().toLocaleTimeString() });
+        activeUsers[socket.id] = { username, room, color };
+        
+        io.emit('updateRooms', activeRooms);
+        io.to(room).emit('updateUserList', Object.values(activeUsers).filter(u => u.room === room));
+        io.emit('updateGlobalUsers', Object.values(activeUsers));
     });
 
-    // Retransmitir mensajes
+    // Retransmitir mensajes a la sala correspondiente
     socket.on('chatMessage', (data) => {
-        io.to(data.room).emit('message', {
-            username: data.username,
-            text: data.text,
-            type: data.type || 'text',
-            time: new Date().toLocaleTimeString()
-        });
+        io.to(data.room).emit('message', data);
     });
 
-    // Crear una nueva sala
+    // Gestión de salas
     socket.on('createRoom', (roomName) => {
         if (!activeRooms.includes(roomName) && roomName.trim() !== '') {
             activeRooms.push(roomName);
-            io.emit('updateRooms', activeRooms); // Avisar a todos para que se actualice su menú
+            io.emit('updateRooms', activeRooms);
         }
     });
 
-    // Eliminar una sala
     socket.on('deleteRoom', (roomName) => {
-        if (roomName !== 'General') { // Protegemos 'General' para que siempre haya una sala base
+        if (roomName !== 'General') {
             activeRooms = activeRooms.filter(r => r !== roomName);
-            io.emit('updateRooms', activeRooms); 
+            io.emit('updateRooms', activeRooms);
         }
     });
 
+    // Desconexión
     socket.on('disconnect', () => {
-        console.log('Un usuario se desconectó');
+        const user = activeUsers[socket.id];
+        if (user) {
+            delete activeUsers[socket.id];
+            io.to(user.room).emit('updateUserList', Object.values(activeUsers).filter(u => u.room === user.room));
+            io.emit('updateGlobalUsers', Object.values(activeUsers));
+        }
     });
 });
 
 const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => {
-    console.log(`Servidor de chat corriendo en el puerto ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
