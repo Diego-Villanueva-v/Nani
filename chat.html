@@ -11,37 +11,41 @@
 <body>
 
 <div id="onboardingModal" class="modal onboarding" style="z-index: 9999;">
-    <div class="modal-content">
-        <h2 style="color: var(--accent); margin-bottom: 5px; text-align: center;" data-i18n="welcomeTo">¡Bienvenido a Nani!</h2>
-        <p style="text-align: center; color: var(--text-muted); margin-bottom: 25px;" data-i18n="setupProfile">Configuremos tu perfil rápido.</p>
-        
+    <div class="modal-content onboard-step active" id="onboardStep1">
+        <h2 style="color: var(--text-main); margin-bottom: 25px; text-align: center;">¿Cuál es tu edad? ✨</h2>
         <div class="form-group">
-            <label data-i18n="yourAge">¿Cuál es tu edad?</label>
-            <input type="number" id="onboardAge" placeholder="Ej: 21" min="13" max="100">
+            <input type="number" id="onboardAge" placeholder="Ej: 21" min="13" max="100" style="text-align: center; font-size: 1.2rem;">
         </div>
-        
-        <label style="display:block; color:var(--text-muted); font-size:0.85rem; font-weight:600; margin-bottom:10px; margin-top:20px;" data-i18n="selectGender">Selecciona tu género</label>
+        <button id="nextOnboardBtn" class="btn-primary" style="margin-top: 20px;">Siguiente</button>
+    </div>
+
+    <div class="modal-content onboard-step" id="onboardStep2">
+        <h2 style="color: var(--text-main); margin-bottom: 25px; text-align: center;">Selecciona tu género ✨</h2>
         <div class="gender-selector">
-            <div class="gender-btn" data-gender="Masculino">🙋‍♂️ <span data-i18n="male">Masculino</span></div>
-            <div class="gender-btn" data-gender="Femenino">🙋‍♀️ <span data-i18n="female">Femenino</span></div>
-            <div class="gender-btn" data-gender="Otro">🦄 <span data-i18n="other">Otro</span></div>
+            <div class="gender-btn" data-gender="Masculino">🙋‍♂️ <br>Masculino</div>
+            <div class="gender-btn" data-gender="Femenino">🙋‍♀️ <br>Femenino</div>
+            <div class="gender-btn" data-gender="Otro">🦄 <br>Otro</div>
         </div>
-        
-        <button id="finishOnboardBtn" class="btn-primary" style="margin-top: 30px;" data-i18n="start">Empezar</button>
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <button id="backOnboardBtn" class="btn-primary-outline" style="flex:1;">Atrás</button>
+            <button id="finishOnboardBtn" class="btn-primary" style="flex:2;">Empezar</button>
+        </div>
     </div>
 </div>
 
 <div class="chat-layout">
-
     <main class="main-views-container">
+        
         <div id="viewLobby" class="app-view active">
             <div class="lobby-content">
-                <i class="fas fa-meteor lobby-icon"></i>
-                <h2 data-i18n="discover">Explora Nani</h2>
-                <p data-i18n="lobbyDesc">Entra a las salas globales y conoce gente nueva.</p>
+                <div class="lobby-icon-container">
+                    <i class="fas fa-meteor lobby-icon"></i>
+                </div>
+                <h2 style="font-size: 2rem; margin-bottom: 10px;">Explora Nani</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px;">Entra a las salas globales y conoce gente nueva.</p>
                 
                 <div class="room-selector-box">
-                    <h4 data-i18n="publicRooms" style="color:var(--text-muted); margin-bottom:10px; font-size:0.8rem; text-transform:uppercase;">Salas Públicas</h4>
+                    <h4 style="color:var(--text-muted); margin-bottom:10px; font-size:0.8rem; text-transform:uppercase;">Salas Públicas</h4>
                     <div class="custom-dropdown" id="roomDropdown">
                         <div class="dropdown-header" id="dropdownHeader">
                             <span id="selectedRoomText">General</span>
@@ -49,7 +53,7 @@
                         </div>
                         <ul class="dropdown-list" id="dropdownList"></ul>
                     </div>
-                    <button id="joinRoomBtn" class="btn-primary" style="width: 100%; margin-bottom:15px;" data-i18n="enterRoom">Entrar a la sala</button>
+                    <button id="joinRoomBtn" class="btn-primary" style="width: 100%; margin-bottom:15px;">Entrar a la sala</button>
                     
                     <div class="create-room">
                         <input type="text" id="newRoomInput" placeholder="Crear nueva sala...">
@@ -91,10 +95,7 @@
                     <button class="picker-tab" data-target="gifSection">🎞️ <span class="hide-mobile">GIFs</span></button>
                     <button class="picker-tab" data-target="stickerSection">⭐️ <span class="hide-mobile">Stickers</span></button>
                 </div>
-                
-                <div class="picker-content active" id="emojiSection">
-                    <div id="emojiPickerContent" class="emoji-grid"></div>
-                </div>
+                <div class="picker-content active" id="emojiSection"><div id="emojiPickerContent" class="emoji-grid"></div></div>
                 <div class="picker-content" id="gifSection">
                     <div style="display: flex; gap: 5px; width: 100%; margin-bottom: 10px;">
                         <input type="text" id="gifSearch" placeholder="Buscar GIF...">
@@ -102,9 +103,7 @@
                     </div>
                     <div id="gifResults" class="media-grid"></div>
                 </div>
-                <div class="picker-content" id="stickerSection">
-                    <div id="stickerResults" class="media-grid"></div>
-                </div>
+                <div class="picker-content" id="stickerSection"><div id="stickerResults" class="media-grid"></div></div>
             </div>
 
             <form id="chatForm" class="chat-form">
@@ -123,15 +122,13 @@
 
         <div id="viewFriends" class="app-view">
             <div class="friends-container">
-                <h2 style="margin-bottom: 20px; color: #fff;" data-i18n="friends">Comunidad</h2>
+                <h2 style="margin-bottom: 20px; color: #fff; text-align: center;">Comunidad</h2>
                 <div class="friends-tabs">
                     <button class="f-tab active" data-target="globalUsersList">Global</button>
-                    <button class="f-tab" data-target="roomUsersList">En esta Sala</button>
                     <button class="f-tab" data-target="myFriendsList">Mis Amigos</button>
                     <button class="f-tab" data-target="pendingRequestsList">Solicitudes</button>
                 </div>
                 <ul id="globalUsersList" class="f-list active"></ul>
-                <ul id="roomUsersList" class="f-list"></ul>
                 <ul id="myFriendsList" class="f-list"></ul>
                 <ul id="pendingRequestsList" class="f-list"></ul>
             </div>
@@ -148,9 +145,9 @@
 </div>
 
 <div id="contextMenu" class="context-menu">
-    <button id="ctxReply"><i class="fas fa-reply"></i> <span data-i18n="ctxReply">Responder</span></button>
-    <button id="ctxSaveSticker"><i class="fas fa-star"></i> <span data-i18n="ctxSave">Guardar Sticker</span></button>
-    <button id="ctxDelete" class="danger-text"><i class="fas fa-trash"></i> <span data-i18n="ctxDelete">Eliminar</span></button>
+    <button id="ctxReply"><i class="fas fa-reply"></i> Responder</button>
+    <button id="ctxSaveSticker"><i class="fas fa-star"></i> Guardar Sticker</button>
+    <button id="ctxDelete" class="danger-text"><i class="fas fa-trash"></i> Eliminar</button>
 </div>
 
 <div id="lightboxModal" class="modal lightbox" onclick="this.classList.remove('active')">
@@ -175,11 +172,11 @@
                 <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje</button>
                 <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
             </div>
-            <h4 style="color: var(--text-main);" data-i18n="wall">Muro de Comentarios</h4>
+            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro de Comentarios</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
                 <input type="text" id="dCommentText" placeholder="Escribe algo...">
-                <button id="dCommentBtn" class="btn-primary" style="width: 45px;"><i class="fas fa-paper-plane"></i></button>
+                <button id="dCommentBtn" class="btn-primary" style="width: 45px; padding: 0;"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
         <button id="closeDiscordProfileBtn" class="discord-close-btn"><i class="fas fa-times"></i></button>
@@ -188,56 +185,58 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-content config-scrollable">
-        <h3 data-i18n="settingsTitle">Configuración</h3>
+        <h3 style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">Configuración</h3>
         
         <div class="settings-section">
-            <h4 data-i18n="setAppearance">Apariencia y Perfil</h4>
-            <div class="form-group" style="text-align: center; margin-bottom: 10px;">
+            <h4 style="color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase;">Apariencia</h4>
+            <div class="form-group" style="text-align: center; margin-bottom: 15px;">
                 <img id="avatarPreview" src="" style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px; border:2px solid var(--accent);">
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
-                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> <span data-i18n="changeAvatar">Cambiar Avatar</span></label>
+                <label for="avatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Avatar</label>
             </div>
             <div class="form-group">
                 <input type="text" id="statusInput" placeholder="Mi Estado Actual...">
             </div>
             <div class="color-selectors">
-                <div class="center-col"><label data-i18n="colorName">Nombre</label><div class="color-picker-wrapper"><input type="color" id="colorPicker"></div></div>
-                <div class="center-col"><label data-i18n="colorBubble">Burbuja</label><div class="color-picker-wrapper"><input type="color" id="bubbleColorPicker"></div></div>
+                <div class="center-col"><label>Nombre</label><div class="color-picker-wrapper"><input type="color" id="colorPicker"></div></div>
+                <div class="center-col"><label>Burbuja</label><div class="color-picker-wrapper"><input type="color" id="bubbleColorPicker"></div></div>
             </div>
             <div class="form-group">
-                <label><span data-i18n="transparency">Transparencia</span> (<span id="opacityVal"></span>)</label>
+                <label>Transparencia (<span id="opacityVal"></span>)</label>
                 <input type="range" id="bubbleOpacity" min="0.1" max="1" step="0.1" class="custom-range">
             </div>
             <div class="form-group">
-                <label data-i18n="wallpaper">Fondo del Chat</label>
+                <label>Fondo de Pantalla Local</label>
                 <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
                 <div style="display: flex; gap: 5px;">
-                    <label for="bgLocalInput" class="custom-file-upload" style="flex:1; margin:0;"><i class="fas fa-image"></i> Personalizar</label>
-                    <button type="button" id="resetBgBtn" class="btn-danger-outline" style="flex:1; border-radius:12px;"><i class="fas fa-undo"></i> Por Defecto</button>
+                    <label for="bgLocalInput" class="custom-file-upload" style="flex:1; margin:0;"><i class="fas fa-image"></i> Cargar</label>
+                    <button type="button" id="resetBgBtn" class="btn-danger-outline" style="flex:1;"><i class="fas fa-undo"></i> Reset</button>
                 </div>
             </div>
         </div>
 
         <div class="settings-section">
-            <h4 data-i18n="setSystem">Sistema</h4>
+            <h4 style="color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase;">Sistema</h4>
             <div class="toggle-row">
-                <span data-i18n="notifications">Notificaciones</span>
+                <span>Notificaciones</span>
                 <input type="checkbox" id="notifToggle" class="toggle-switch" checked>
             </div>
             <div class="toggle-row">
-                <span data-i18n="vibration">Vibración</span>
+                <span>Vibración</span>
                 <input type="checkbox" id="vibToggle" class="toggle-switch" checked>
             </div>
         </div>
 
-        <div class="settings-section" style="text-align: center; color:var(--text-muted); font-size:0.85rem;">
-            <p><strong>Nani? V6.0</strong></p>
-            <p data-i18n="support">Soporte: unknownlineof@gmail.com</p>
-            <p style="margin-top: 15px; cursor:pointer; display:inline-block;" id="logoutBtnCtx" class="danger-text"><i class="fas fa-power-off"></i> <span data-i18n="logout">Cerrar Sesión</span></p>
+        <div class="settings-section" style="border: none; margin-bottom: 0; padding-bottom: 0;">
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Nani? V7.0</p>
+            <a href="mailto:unknownlineof@gmail.com" class="btn-primary-outline" style="display: block; text-align: center; text-decoration: none; margin-bottom: 10px;"><i class="fas fa-envelope"></i> Soporte Técnico</a>
+            <button id="logoutBtnCtx" class="btn-danger" style="width: 100%;"><i class="fas fa-power-off"></i> Cerrar Sesión</button>
         </div>
 
-        <button id="saveConfigBtn" class="btn-primary" style="width: 100%; margin-top: 10px;" data-i18n="save">Guardar Cambios</button>
-        <button onclick="document.getElementById('settingsModal').classList.remove('active')" class="btn-danger" style="width: 100%; margin-top: 10px; background: transparent;" data-i18n="close">Cerrar</button>
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button id="closeConfigBtn" class="btn-primary-outline" style="flex: 1;">Cancelar</button>
+            <button id="saveConfigBtn" class="btn-primary" style="flex: 2;">Guardar</button>
+        </div>
     </div>
 </div>
 
@@ -274,7 +273,10 @@
       }
   });
 
-  document.getElementById('logoutBtnCtx').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
+  // Evento de Logout asignado después de cargar el DOM
+  document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('logoutBtnCtx').addEventListener('click', () => signOut(window.auth).then(() => window.location.href = 'index.html'));
+  });
 </script>
 <script src="chat.js"></script>
 </body>

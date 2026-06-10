@@ -18,7 +18,7 @@ let activeUsers = {};
 let profileComments = {}; 
 let roomHistory = {}; 
 
-// Seguridad: El único super admin es este correo
+// SEGURIDAD: Tu correo es la llave maestra
 const SUPER_ADMIN_EMAIL = 'unknownlineof@gmail.com';
 
 io.on('connection', (socket) => {
@@ -26,7 +26,6 @@ io.on('connection', (socket) => {
     socket.on('joinRoom', (userData) => {
         if (activeUsers[socket.id]) socket.leave(activeUsers[socket.id].room);
         
-        // Verificamos si es el admin por su correo
         userData.isAdmin = userData.email === SUPER_ADMIN_EMAIL;
         
         socket.join(userData.room);
@@ -119,4 +118,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => console.log(`Nani? V6.0 Server en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`Nani? V7.0 Server en puerto ${PORT}`));

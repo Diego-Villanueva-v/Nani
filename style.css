@@ -39,7 +39,7 @@ body { background-color: var(--bg-main); background-image: url('Nane.jpg'); back
 .brand-header p { color: var(--text-muted); font-size: 0.95rem; }
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase;}
-.form-group input[type="text"], .form-group input[type="email"], .form-group input[type="password"] { width: 100%; padding: 15px; border: 1px solid var(--border); border-radius: 12px; font-size: 15px; outline: none; background: var(--input-bg); color: var(--text-main); transition: 0.3s; }
+.form-group input[type="text"], .form-group input[type="email"], .form-group input[type="password"], .form-group input[type="number"] { width: 100%; padding: 15px; border: 1px solid var(--border); border-radius: 12px; font-size: 15px; outline: none; background: var(--input-bg); color: var(--text-main); transition: 0.3s; }
 .form-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(217, 70, 239, 0.3); }
 .divider { display: flex; align-items: center; text-align: center; margin: 25px 0; color: var(--text-muted); font-size: 0.85rem; }
 .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid var(--border); }
@@ -60,8 +60,7 @@ body { background-color: var(--bg-main); background-image: url('Nane.jpg'); back
 #viewLobby { justify-content: center; align-items: center; background: rgba(0,0,0,0.4); text-align: center; padding: 40px; }
 .lobby-icon { font-size: 5rem; color: var(--accent); margin-bottom: 20px; text-shadow: 0 0 20px var(--accent); animation: float 3s ease-in-out infinite;}
 @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
-.room-selector { background: var(--input-bg); padding: 25px; border-radius: 20px; margin-bottom: 15px; border: 1px solid var(--border);}
-.room-selector h4 { font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 15px; font-weight: 700; }
+.room-selector-box { background: var(--input-bg); padding: 25px; border-radius: 20px; margin-top: 30px; border: 1px solid var(--border); width: 100%; max-width: 400px; text-align: left;}
 .custom-dropdown { position: relative; width: 100%; margin-bottom: 15px; }
 .dropdown-header { padding: 14px 15px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-main); color: var(--text-main); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.3s; font-size: 0.95rem; }
 .dropdown-header:hover { border-color: var(--accent); }
@@ -122,7 +121,7 @@ body { background-color: var(--bg-main); background-image: url('Nane.jpg'); back
 @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 .picker-tabs { display: flex; justify-content: space-around; border-bottom: 1px solid var(--border); margin-bottom: 15px; padding-bottom: 10px;}
 .picker-tab { background: none; border: none; color: var(--text-muted); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
-.picker-tab.active { color: var(--accent); }
+.picker-tab:hover, .picker-tab.active { color: var(--accent); }
 .picker-content { display: none; flex-direction: column; overflow-y: auto; height: 280px; padding-right: 5px;}
 .picker-content.active { display: flex; }
 .emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
@@ -140,19 +139,21 @@ body { background-color: var(--bg-main); background-image: url('Nane.jpg'); back
 .f-list { list-style: none; display: none; flex-direction: column; gap: 10px;}
 .f-list.active { display: flex; }
 .f-item { background: var(--input-bg); padding: 15px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); transition: 0.2s;}
-.f-item:hover { border-color: var(--border); background: var(--hover-bg);}
+.f-item:hover { border-color: var(--accent); background: var(--hover-bg);}
 
-/* BOTTOM NAV (APP NATIVA) */
+/* BOTTOM NAVIGATION (App Style) */
 .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; height: 65px; background: var(--bg-panel); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 50; backdrop-filter: blur(15px);}
 .nav-item { background: none; border: none; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: 0.2s; flex: 1;}
 .nav-item i { font-size: 1.3rem; margin-bottom: 2px;}
 .nav-item.active { color: var(--accent); }
 .nav-item.active i { transform: scale(1.1); }
 
-/* ONBOARDING Y CONFIGURACIÓN */
+/* ONBOARDING MULTIPANTALLA */
 .onboarding .modal-content { text-align: left; }
+.onboard-step { display: none; animation: fadeIn 0.3s ease; }
+.onboard-step.active { display: block; }
 .gender-selector { display: flex; justify-content: space-between; gap: 10px; }
-.gender-btn { flex: 1; background: var(--input-bg); border: 1px solid var(--border); padding: 15px 5px; border-radius: 16px; text-align: center; cursor: pointer; transition: 0.2s; font-weight: 600; color: var(--text-main); font-size: 0.9rem;}
+.gender-btn { flex: 1; background: var(--input-bg); border: 1px solid var(--border); padding: 20px 5px; border-radius: 16px; text-align: center; cursor: pointer; transition: 0.2s; font-weight: 600; color: var(--text-main); font-size: 0.9rem;}
 .gender-btn.active { border-color: var(--accent); background: rgba(217, 70, 239, 0.2); }
 .settings-section { margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px;}
 .settings-section h4 { color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase; font-weight: 700;}
@@ -161,10 +162,10 @@ body { background-color: var(--bg-main); background-image: url('Nane.jpg'); back
 /* PERFIL DISCORD */
 .discord-profile-content { background: var(--bg-main); width: 90%; max-width: 360px; border-radius: 20px; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.9); border: 1px solid var(--border); transform: scale(0.9); transition: 0.3s;}
 .modal.active .discord-profile-content { transform: scale(1); }
-.discord-banner { height: 120px; background: var(--accent); }
+.discord-banner { height: 140px; background: var(--accent); }
 .discord-header { padding: 0 20px 15px; position: relative; border-bottom: 1px solid var(--border);}
-.discord-header img { width: 90px; height: 90px; border-radius: 50%; border: 6px solid var(--bg-main); margin-top: -45px; background: var(--bg-main); object-fit: cover;}
-.discord-header h3 { font-size: 1.5rem; margin-top: 10px; margin-bottom: 5px; color: var(--text-main);}
+.discord-header img { width: 100px; height: 100px; border-radius: 50%; border: 6px solid var(--bg-main); margin-top: -50px; background: var(--bg-main); object-fit: cover;}
+.discord-header h3 { font-size: 1.6rem; margin-top: 10px; margin-bottom: 5px; color: var(--text-main);}
 .profile-details-badge { font-size:0.8rem; color:var(--text-muted); background:var(--input-bg); padding:4px 10px; border-radius:12px; font-weight: 600; border: 1px solid var(--border);}
 .discord-status { font-size: 0.9rem; color: var(--text-main); font-weight: 500; background: var(--bg-panel); padding: 8px 12px; border-radius: 12px; display: inline-block; border: 1px solid var(--border);}
 .discord-body { padding: 25px; background: var(--bg-panel); }
@@ -173,6 +174,7 @@ body { background-color: var(--bg-main); background-image: url('Nane.jpg'); back
 .discord-comment-input { display: flex; gap: 10px; }
 .discord-comment-input input { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); outline: none; }
 .discord-close-btn { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.5); border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; transition: 0.2s;}
+.discord-close-btn:hover { background: var(--danger); transform: rotate(90deg);}
 
 /* INPUTS ESTÉTICOS Y SELECTORES DE COLOR CIRCULARES */
 .avatar-edit { display: flex; flex-direction: column; align-items: center; margin-bottom: 25px; }
@@ -183,8 +185,6 @@ body { background-color: var(--bg-main); background-image: url('Nane.jpg'); back
 .color-picker-wrapper { width: 50px; height: 50px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border); cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.3);}
 .color-picker-wrapper input[type="color"] { width: 200%; height: 200%; transform: translate(-25%, -25%); border: none; cursor: pointer; padding: 0; outline: none; }
 input[type="range"] { accent-color: var(--accent); cursor: pointer; height: 6px; background: var(--bg-main); border-radius: 10px; outline: none;}
-
-/* TOGGLE SWITCH ESTÉTICO */
 .toggle-switch { appearance: none; width: 40px; height: 22px; background: var(--border); border-radius: 20px; position: relative; cursor: pointer; outline: none; transition: 0.3s;}
 .toggle-switch::before { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; top: 2px; left: 2px; background: var(--text-muted); transition: 0.3s; }
 .toggle-switch:checked { background: var(--accent); }
@@ -195,30 +195,24 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; height: 6px;
 .modal.active { opacity: 1; visibility: visible; }
 .modal-content { background: var(--bg-panel); padding: 35px; border-radius: 20px; width: 90%; max-width: 420px; border: 1px solid var(--border); box-shadow: 0 25px 50px rgba(0,0,0,0.8); transform: translateY(20px); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 .modal.active .modal-content { transform: translateY(0); }
-.modal-content h3 { text-align: center; margin-bottom: 25px; font-size: 1.4rem; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 15px;}
 .lightbox img { max-width: 90%; max-height: 90%; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.9); }
 
 /* RESPONSIVE MÓVIL TOTAL */
 @media (max-width: 850px) {
     body { padding: 0; }
     .chat-layout { border-radius: 0; border: none; height: 100vh; }
-    
-    .chat-sidebar, .hide-mobile { display: none !important; } 
-    
+    .hide-mobile { display: none !important; } 
     .chat-main { padding-bottom: 65px; height: 100vh;}
     .lobby-view { padding-bottom: 80px; padding: 20px; }
     .unified-picker { width: 95%; left: 2.5%; right: 2.5%; bottom: 140px; }
-    
     .chat-header { padding: 12px 15px; }
     .chat-header h2 { font-size: 1.2rem; }
     .chat-messages { padding: 15px; gap: 10px; padding-bottom: 80px;}
     .message { max-width: 90%; padding: 10px 14px;}
-    
     .chat-form { padding: 10px; gap: 6px; bottom: 65px; border-top: none;}
     .input-chat-wrapper input[type="text"] { padding: 12px 15px; font-size: 0.95rem; }
     .btn-send { width: 42px; height: 42px; font-size: 1.1rem; }
     .btn-icon { padding: 6px; font-size: 1.3rem; }
-    
     .modal-content { width: 95%; padding: 25px; margin: 10px; max-height: 90vh; overflow-y: auto; }
     .friends-container { padding: 20px; padding-bottom: 80px;}
 }
