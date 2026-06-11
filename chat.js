@@ -26,7 +26,7 @@ let userAge, userGender, userColor, userBubbleColor, userBubbleOpacity, userStat
 let myStickers = [], myFriends = [], myRequests = [], myRooms = [], mutedRooms = [];
 
 // ==========================================
-// SEGURIDAD GLOBAL: SANITIZACIÓN ANTI-XSS
+// SEGURIDAD: SANITIZACIÓN ANTI-XSS
 // ==========================================
 const escapeHTML = (str) => {
     if(typeof str !== 'string') return '';
@@ -47,7 +47,7 @@ const safeAddListener = (id, event, handler) => {
 };
 
 // ==========================================
-// MÉTODOS GLOBALES FIJOS (UI)
+// MÉTODOS GLOBALES DE UI
 // ==========================================
 window.ui = {
     openProfile: (username) => {
@@ -83,6 +83,7 @@ window.ui = {
     }
 };
 
+// DELEGACIÓN GLOBAL INFALIBLE PARA PERFILES
 document.addEventListener('click', (e) => {
     const target = e.target.closest('[data-profile]');
     if (target) {
@@ -105,7 +106,7 @@ document.addEventListener('click', (e) => {
 onAuthStateChanged(auth, async (user) => {
     if (!user) return window.location.href = 'index.html';
     
-    currentUserUid = user.uid; 
+    currentUserUid = user.uid; // Primary Key
     currentUserEmail = user.email;
     isSuperAdmin = currentUserEmail === SUPER_ADMIN_EMAIL;
     
@@ -129,7 +130,7 @@ onAuthStateChanged(auth, async (user) => {
     userBubbleOpacity = prefs.bubbleOpacity || '0.9';
     userStatus = prefs.status || 'Conectado';
     userAvatar = prefs.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-    chatBg = prefs.bgLocal || ''; 
+    chatBg = localStorage.getItem('nani_bg') || prefs.bgLocal || ''; // Lee el fondo desde caché local
     useVibration = prefs.vibration !== false; 
     useNotifs = prefs.notifications !== false;
     useLightMode = prefs.lightMode === true;
@@ -156,10 +157,12 @@ function initApp() {
     sendUserData('Lobby'); 
     window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]'));
     renderFriendsUI();
+    renderMyRoomsUI();
 }
 
 const saveAppPrefs = async () => {
     try { 
+        localStorage.setItem('nani_bg', chatBg); // Almacenamiento instantáneo y HD
         await setDoc(doc(db, "usuarios", currentUserUid), { 
             bio: userBio,
             preferences: { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, avatar: userAvatar, bgLocal: chatBg, rooms: myRooms, mutedRooms: mutedRooms, stickers: myStickers, vibration: useVibration, notifications: useNotifs, lightMode: useLightMode } 
@@ -167,8 +170,17 @@ const saveAppPrefs = async () => {
     } catch(e) {}
 };
 
+// ==========================================
+// VISTAS Y BOTONES INFERIORES NATIVOS
+// ==========================================
 document.querySelectorAll('.bottom-nav .nav-item[data-view]').forEach(btn => {
-    btn.addEventListener('click', () => window.ui.switchView(btn.dataset.view, btn));
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetBtn = e.target.closest('.nav-item');
+        if(targetBtn && targetBtn.dataset.view) {
+            window.ui.switchView(targetBtn.dataset.view, targetBtn);
+        }
+    });
 });
 
 safeAddListener('navSettingsBtn', 'click', () => {
@@ -193,12 +205,12 @@ const sendUserData = (room = currentRoom) => {
 };
 
 // ==========================================
-// SALAS Y MEMBRESÍA (DMS Y GRUPOS)
+// SALAS, DMS Y MEMBRESÍA
 // ==========================================
 const checkRoomMembership = () => {
     if(currentRoom === 'Lobby') return;
     
-    // Si es un chat privado (tiene _)
+    // Es DM
     if(currentRoom.includes('_')) {
         document.getElementById('chatForm').style.display = 'flex';
         document.getElementById('joinRoomPrompt').style.display = 'none';
@@ -207,7 +219,7 @@ const checkRoomMembership = () => {
         return;
     }
     
-    // Si es sala pública
+    // Es Sala Pública
     document.getElementById('chatMenuDropdownContainer').style.display = 'block';
     document.getElementById('toggleRoomUsersBtn').style.display = 'block';
 
@@ -278,7 +290,7 @@ safeAddListener('menuClearChatLocal', 'click', () => {
     showToast("Chat local vaciado");
 });
 
-// Cambiar Fondo Modal
+// Fondo HD Local (Estilo WhatsApp)
 let tempBgData = null;
 safeAddListener('menuChangeBg', 'click', () => {
     document.getElementById('chatMenuDropdown').classList.remove('show');
@@ -300,25 +312,29 @@ safeAddListener('bgLocalInputChat', 'change', (e) => {
         };
     }
 });
-safeAddListener('cancelBgBtn', 'click', () => {
-    document.getElementById('bgPreviewModal').classList.remove('active');
-    tempBgData = null;
-});
+safeAddListener('cancelBgBtn', 'click', () => { document.getElementById('bgPreviewModal').classList.remove('active'); tempBgData = null; });
 safeAddListener('applyBgBtn', 'click', () => {
     if(tempBgData) { chatBg = tempBgData; window.ui.applyBackground(chatBg); saveAppPrefs(); showToast("Fondo Aplicado."); }
     document.getElementById('bgPreviewModal').classList.remove('active');
 });
 
-// Renderizado de Salas y DMs (Mis Chats)
+// ==========================================
+// RENDERIZAR "MIS CHATS" ESTILO PURP
+// ==========================================
 const renderMyRoomsUI = () => {
     const listRooms = document.getElementById('myJoinedRoomsList');
     const listDMs = document.getElementById('myDMsList');
     if(!listRooms || !listDMs) return;
     
-    // Salas
+    // Auto-limpiar salas fantasma
+    const validRoomIds = currentRoomsData.map(r => r.id);
+    const originalLen = myRooms.length;
+    myRooms = myRooms.filter(id => validRoomIds.includes(id));
+    if(myRooms.length !== originalLen) saveAppPrefs();
+    
     listRooms.innerHTML = myRooms.map(rName => {
-        const rData = currentRoomsData.find(rm => rm.id === rName) || null;
-        if(!rData) return ''; // Ocultar si fue borrada globalmente
+        const rData = currentRoomsData.find(rm => rm.id === rName);
+        if(!rData) return ''; 
         return `<li class="f-item purp-chat-item" style="cursor:pointer;" onclick="window.enterRoomDirect('${escapeHTML(rData.id)}')">
             <div style="display:flex; align-items:center; gap:15px;">
                 <img src="${rData.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:55px; height:55px; border-radius:18px; object-fit:cover; border: 2px solid var(--border);">
@@ -331,7 +347,6 @@ const renderMyRoomsUI = () => {
         </li>`;
     }).join('') || '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">No te has unido a ninguna sala aún.</p>';
 
-    // DMs
     listDMs.innerHTML = myFriends.map(friend => {
         const safeF = escapeHTML(friend);
         return `<li class="f-item purp-chat-item" style="cursor:pointer;" onclick="window.openDMRoom('${safeF}')">
@@ -348,7 +363,7 @@ const renderMyRoomsUI = () => {
 };
 
 // ==========================================
-// BÚSQUEDA Y CREACIÓN DE SALAS
+// BÚSQUEDA Y CREACIÓN DE SALAS LOBBY
 // ==========================================
 safeAddListener('searchRoomInput', 'input', (e) => {
     const term = e.target.value.toLowerCase();
@@ -390,10 +405,10 @@ safeAddListener('createRoomBtn', 'click', () => {
 });
 
 // ==========================================
-// PERFIL DE SALA (CONFIGURACIÓN)
+// PERFIL DE SALA (CONFIG Y UID VALIDATION)
 // ==========================================
 safeAddListener('openRoomProfileBtn', 'click', () => {
-    if(currentRoom.includes('_')) return; // No abrir perfil de sala en DMs
+    if(currentRoom.includes('_')) return; 
     socket.emit('getRoomProfile', currentRoom);
     document.getElementById('roomProfileModal').classList.add('active');
 });
@@ -466,7 +481,7 @@ safeAddListener('muteRoomToggle', 'change', (e) => {
 });
 
 // ==========================================
-// TABS GENÉRICOS
+// TABS GENÉRICOS (ROBUSTOS)
 // ==========================================
 document.querySelectorAll('.picker-tab, .f-tab').forEach(tab => {
     tab.addEventListener('click', (e) => {
@@ -483,7 +498,7 @@ document.querySelectorAll('.picker-tab, .f-tab').forEach(tab => {
 });
 
 // ==========================================
-// RENDERIZADO DEL PERFIL DE USUARIO
+// PERFIL USUARIO (BIO Y PREFS)
 // ==========================================
 safeAddListener('editProfileToggleBtn', 'click', () => {
     const editSec = document.getElementById('dProfileEditSection');
@@ -573,7 +588,7 @@ socket.on('newProfileComment', (data) => { if(viewingProfile === data.targetUser
 safeAddListener('closeDiscordProfileBtn', 'click', () => { document.getElementById('discordProfileModal').classList.remove('active'); });
 
 // ==========================================
-// SOCIAL Y AMIGOS
+// LISTAS SOCIALES Y GLOBALES 
 // ==========================================
 const renderFriendsUI = () => {
     const gl = (c, arr, isR) => { 
@@ -584,17 +599,8 @@ const renderFriendsUI = () => {
         return `<li class="f-item" style="cursor:pointer;" data-profile="${safeU}"><span style="font-weight:bold; color:var(--text-main); flex:1;">${safeU}</span>${isR ? `<div><button class="btn-primary" onclick="event.stopPropagation(); window.acceptFriend('${safeU}')" style="padding:5px 10px; font-size:0.8rem; border-radius:8px;">Aceptar</button> <button class="btn-danger-outline" onclick="event.stopPropagation(); window.rejectFriend('${safeU}')" style="padding:5px 10px; font-size:0.8rem;">X</button></div>` : ''}</li>`
     }).join('') || '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center;">Lista vacía.</p>'; };
     gl('myFriendsList', myFriends, false); gl('pendingRequestsList', myRequests, true);
-    renderMyRoomsUI(); // Actualizar lista de DMs también
 };
-socket.on('friendRequestReceived', ({ from, to }) => { 
-    if(to === currentUsername && !myRequests.includes(from) && !myFriends.includes(from)) { 
-        myRequests.push(from); 
-        setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests }, { merge: true }); 
-        vibrate(200); 
-        showToast(`¡${escapeHTML(from)} te envió una solicitud!`, "success");
-        renderFriendsUI(); 
-    }
-});
+socket.on('friendRequestReceived', ({ from, to }) => { if(to === currentUsername && !myRequests.includes(from) && !myFriends.includes(from)) { myRequests.push(from); setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests }, { merge: true }); vibrate(200); renderFriendsUI(); }});
 window.acceptFriend = (rU) => { myFriends.push(rU); myRequests = myRequests.filter(r => r !== rU); setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests, friends: myFriends }, { merge: true }); socket.emit('acceptFriendRequest', { from: currentUsername, to: rU }); renderFriendsUI(); };
 window.rejectFriend = (rU) => { myRequests = myRequests.filter(r => r !== rU); setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests }, { merge: true }); renderFriendsUI(); };
 socket.on('friendRequestAccepted', ({ from, to }) => { if(to === currentUsername && !myFriends.includes(from)) { myFriends.push(from); setDoc(doc(db, "usuarios", currentUserUid), { friends: myFriends }, { merge: true }); renderFriendsUI(); }});
@@ -640,7 +646,7 @@ safeAddListener('doGifSearchBtn', 'click', async () => {
 });
 
 // ==========================================
-// ENVÍO DE MENSAJES Y NOTAS DE VOZ MESSENGER STYLE
+// ENVÍO DE MENSAJES Y NOTAS DE VOZ
 // ==========================================
 const enviarMensaje = (texto, tipo = 'text') => {
     if (!texto) return;
@@ -657,14 +663,14 @@ safeAddListener('chatForm', 'submit', (e) => {
     if(mi) { enviarMensaje(mi.value.trim(), 'text'); mi.value = ''; }
 });
 
-// Grabación Estilo Messenger (Pulsante)
+// Grabación Estilo Messenger
 let isRecording = false;
 const recOverlay = document.getElementById('recordingOverlay');
 
 const startRecording = async (e) => {
     if(e) e.preventDefault();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        return showToast("Tu navegador bloquea el micrófono. Necesitas HTTPS.", "error");
+        return showToast("Tu navegador bloquea el micrófono. Intenta por HTTPS.", "error");
     }
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -698,7 +704,7 @@ const stopRecording = (e) => {
 const vBtn = document.getElementById('voiceBtn');
 if(vBtn) {
     vBtn.addEventListener('mousedown', startRecording);
-    vBtn.addEventListener('touchstart', startRecording);
+    vBtn.addEventListener('touchstart', startRecording, {passive: false});
     window.addEventListener('mouseup', stopRecording);
     window.addEventListener('touchend', stopRecording);
 }
@@ -709,7 +715,11 @@ safeAddListener('fileInput', 'change', (e) => {
     if(file.size > 8 * 1024 * 1024) return showToast("El archivo supera 8MB.", "error");
 
     const isImage = file.type.startsWith('image/');
-    if (isImage && file.type !== 'image/gif') { compressImg(file, (b64) => enviarMensaje(b64, 'image')); } 
+    if (isImage && file.type !== 'image/gif') {
+        const r = new FileReader();
+        r.readAsDataURL(file);
+        r.onload = (ev) => { enviarMensaje(ev.target.result, 'image'); }; 
+    } 
     else {
         const r = new FileReader();
         r.readAsDataURL(file);
@@ -742,7 +752,7 @@ const renderMessage = (msg) => {
         const safeReplyUser = escapeHTML(msg.reply.username);
         const safeReplyText = escapeHTML(msg.reply.text);
         const isReplyMedia = msg.reply.text.startsWith('data:') || msg.reply.text.startsWith('http');
-        // WHATSAPP STYLE SCROLL TO REPLY
+        // WHATSAPP STYLE SCROLL TO REPLY (Animado)
         rHtml = `<div class="quoted-message" onclick="window.ui.scrollToMessage('${msg.reply.msgId}')" style="border-left-color: ${isMe ? '#fff' : cNameColor}; cursor:pointer;"><strong style="color: ${isMe ? '#fff' : cNameColor};">${safeReplyUser}</strong><p>${isReplyMedia ? '📷 Media' : safeReplyText}</p></div>`;
     }
 
@@ -801,7 +811,6 @@ safeAddListener('ctxReply', 'click', () => {
     ctxMenu.classList.remove('active');
 });
 
-// NUEVO BOTÓN COMPARTIR
 safeAddListener('ctxShare', 'click', async () => {
     if (navigator.share && selectedMsgContext) {
         try {

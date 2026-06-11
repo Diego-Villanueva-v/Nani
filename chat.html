@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
+        // MODO CLARO INSTANTÁNEO
         if(localStorage.getItem('nani_theme') === 'light') {
             document.documentElement.classList.add('light-theme');
         }
@@ -106,7 +107,7 @@
                             <li id="menuChangeBg"><i class="fas fa-image" style="color:var(--accent); margin-right:8px;"></i> Cambiar Fondo</li>
                             <li id="menuResetBg"><i class="fas fa-eraser" style="margin-right:8px;"></i> Quitar Fondo</li>
                             <hr style="border-color: var(--border); margin: 5px 0;">
-                            <li id="menuClearChatLocal" class="danger-text"><i class="fas fa-broom" style="margin-right:8px;"></i> Vaciar Chat Local</li>
+                            <li id="menuClearChatLocal" class="danger-text"><i class="fas fa-broom" style="margin-right:8px;"></i> Vaciar Chat</li>
                         </ul>
                     </div>
                 </div>
@@ -117,7 +118,7 @@
                 
                 <div id="roomUsersPanel" class="lobby-panel lobby-panel-right">
                     <div class="panel-header">
-                        <h4>Miembros de Sala</h4>
+                        <h4>Miembros</h4>
                         <button id="closeRoomUsersBtn" class="btn-icon-small" style="padding: 5px 10px;"><i class="fas fa-times"></i></button>
                     </div>
                     <ul id="roomUsersList" class="f-list active" style="padding: 10px; overflow-y: auto;"></ul>
@@ -133,8 +134,8 @@
             </div>
 
             <div id="joinRoomPrompt" class="join-room-overlay">
-                <p style="margin-bottom: 15px; color: var(--text-main); font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Estás viendo esta sala en modo espectador.</p>
-                <button id="btnJoinCurrentRoom" class="btn-primary" style="max-width: 300px; padding: 16px; font-size: 1.1rem; box-shadow: 0 10px 20px rgba(217, 70, 239, 0.4);">Unirse a la sala</button>
+                <p style="margin-bottom: 15px; color: var(--text-main); font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Estás en modo espectador.</p>
+                <button id="btnJoinCurrentRoom" class="btn-primary" style="max-width: 300px; padding: 16px; font-size: 1.1rem;">Unirse a la sala</button>
             </div>
 
             <div id="unifiedPicker" class="unified-picker">
@@ -160,7 +161,7 @@
 
             <div id="recordingOverlay" class="recording-overlay">
                 <div class="recording-pulse"></div>
-                <span class="recording-text"><i class="fas fa-microphone"></i> Grabando audio... Suelta para enviar.</span>
+                <span class="recording-text"><i class="fas fa-microphone"></i> Grabando... Suelta para enviar.</span>
             </div>
 
             <form id="chatForm" class="chat-form">
@@ -191,7 +192,7 @@
 <div id="contextMenu" class="context-menu">
     <button id="ctxProfile"><i class="fas fa-user"></i> Ver Perfil</button>
     <button id="ctxReply"><i class="fas fa-reply"></i> Responder</button>
-    <button id="ctxShare"><i class="fas fa-share-alt"></i> Compartir Mensaje</button>
+    <button id="ctxShare"><i class="fas fa-share-alt"></i> Compartir</button>
     <button id="ctxSaveSticker"><i class="fas fa-star"></i> Guardar Sticker</button>
     <button id="ctxDelete" class="danger-text"><i class="fas fa-trash"></i> Eliminar</button>
 </div>
@@ -231,7 +232,7 @@
                 </div>
             </div>
 
-            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar esta Sala</button>
+            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar Sala</button>
 
             <div id="rProfileEditSection" style="display: none; border-top: 1px solid var(--border); padding-top: 15px;">
                 <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Ajustes de Creador</h4>
@@ -240,15 +241,15 @@
                     <input type="text" id="rEditName" class="input-chat-wrapper" style="width: 100%; padding: 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border);" autocomplete="off">
                 </div>
                 <div class="form-group">
-                    <label>Descripción de la sala</label>
-                    <input type="text" id="rEditDesc" class="input-chat-wrapper" style="width: 100%; padding: 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border);" placeholder="De qué trata la sala..." autocomplete="off">
+                    <label>Descripción</label>
+                    <input type="text" id="rEditDesc" class="input-chat-wrapper" style="width: 100%; padding: 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border);" placeholder="De qué trata..." autocomplete="off">
                 </div>
                 <div class="form-group" style="text-align: center;">
                     <input type="file" id="rEditAvatarInput" accept="image/*" style="display: none;">
-                    <label for="rEditAvatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Foto de la Sala</label>
+                    <label for="rEditAvatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Foto</label>
                 </div>
                 <button id="saveRoomProfileBtn" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
-                <button id="deleteRoomBtnActual" class="btn-danger-custom" style="width: 100%; margin-top: 15px;"><i class="fas fa-trash"></i> Destruir Sala (Global)</button>
+                <button id="deleteRoomBtnActual" class="btn-danger" style="width: 100%; margin-top: 15px;"><i class="fas fa-trash"></i> Eliminar Sala Global</button>
             </div>
         </div>
         <button class="discord-close-btn" id="closeRoomProfileBtn"><i class="fas fa-times"></i></button>
@@ -270,7 +271,7 @@
             <div id="dProfileStatusBadge" class="discord-status" style="margin-top:10px;">
                 <span class="status-dot"></span> <span class="status-text"></span>
             </div>
-            <p id="dProfileBio" style="margin-top: 15px; color: var(--text-muted); font-size: 0.9rem; line-height: 1.4;"></p>
+            <p id="dProfileBio" style="margin-top: 15px; color: var(--text-muted); font-size: 0.9rem; line-height: 1.4; word-wrap: break-word;"></p>
         </div>
 
         <div id="dProfileEditSection" class="discord-body" style="display: none; border-bottom: 1px solid var(--border); padding-top: 15px;">
@@ -311,7 +312,7 @@
         <div class="discord-body">
             <div id="dProfileActions" style="display:flex; gap:10px; margin-bottom:15px;">
                 <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje Directo</button>
-                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir Amigo</button>
+                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
             </div>
             <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro del Usuario</h4>
             <div class="discord-comments" id="dProfileComments"></div>

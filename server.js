@@ -154,7 +154,7 @@ io.on('connection', (socket) => {
     socket.on('deleteRoom', ({ roomName, requesterUid, requesterUser, requesterEmail }) => {
         const room = activeRooms.find(r => r.id === roomName);
         if (room && !['General', 'Programacion', 'Juegos'].includes(room.id)) {
-            // DOBLE VALIDACION: UID y Creador
+            // DOBLE VALIDACION EXTREMA POR UID O EMAIL DE DIOS
             if (room.uid === requesterUid || room.creator === requesterUser || requesterEmail === SUPER_ADMIN_EMAIL) {
                 activeRooms = activeRooms.filter(r => r.id !== roomName);
                 delete roomHistory[roomName];
