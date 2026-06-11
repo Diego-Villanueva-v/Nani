@@ -28,6 +28,22 @@ const broadcastRoomsUpdate = () => {
     io.emit('updateRooms', roomsWithCounts);
 };
 
+// LIMPIEZA CADA MINUTO: Elimina mensajes de más de 24 hrs en salas públicas
+setInterval(() => {
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    for (let room in roomHistory) {
+        if (!room.includes('_')) { // Solo salas publicas, ignora DMs
+            const originalLen = roomHistory[room].length;
+            roomHistory[room] = roomHistory[room].filter(m => (now - parseInt(m.msgId)) < twentyFourHours);
+            if(originalLen !== roomHistory[room].length) {
+                // Actualiza historia localmente (optimizado)
+                io.to(room).emit('loadHistory', roomHistory[room].slice(-50));
+            }
+        }
+    }
+}, 60000);
+
 io.on('connection', (socket) => {
     socket.on('joinRoom', (userData) => {
         if (activeUsers[socket.id]) socket.leave(activeUsers[socket.id].room);
@@ -40,7 +56,7 @@ io.on('connection', (socket) => {
         
         if (userData.room !== 'Lobby') {
             if (!roomHistory[userData.room]) roomHistory[userData.room] = [];
-            // Optimización RAM: Solo mandamos los últimos 50 para evitar lag
+            // Optimización de RAM y lentitud: solo carga los últimos 50.
             socket.emit('loadHistory', roomHistory[userData.room].slice(-50));
         }
 
@@ -51,15 +67,15 @@ io.on('connection', (socket) => {
 
     socket.on('chatMessage', (data) => {
         if (!roomHistory[data.room]) roomHistory[data.room] = [];
-        data.msgId = data.msgId || Date.now().toString(); // Usamos el ID del cliente o creamos uno
+        data.msgId = data.msgId || Date.now().toString(); 
         roomHistory[data.room].push(data);
-        if (roomHistory[data.room].length > 100) roomHistory[data.room].shift(); // Optimización: Solo guardamos 100 max en RAM
+        if (roomHistory[data.room].length > 100) roomHistory[data.room].shift(); 
         io.to(data.room).emit('message', data);
     });
 
     socket.on('deleteMessage', ({ room, msgId, requesterUid, requesterEmail }) => {
         const msg = roomHistory[room]?.find(m => m.msgId === msgId);
-        // VALIDACIÓN ESTRICTA DE LA PRIMARY KEY (UID)
+        // UID VALIDACIÓN O DIOS
         if (requesterEmail === SUPER_ADMIN_EMAIL || (msg && msg.uid === requesterUid)) {
             if (roomHistory[room]) {
                 roomHistory[room] = roomHistory[room].filter(m => m.msgId !== msgId);
@@ -80,6 +96,7 @@ io.on('connection', (socket) => {
             color: user.color || '#d946ef', 
             age: user.age || '', 
             gender: user.gender || '', 
+            bio: user.bio || '', // Bio cargada
             isAdmin: user.isAdmin || false, 
             comments 
         });
@@ -90,11 +107,19 @@ io.on('connection', (socket) => {
         socket.emit('roomProfileData', room);
     });
 
-    socket.on('updateRoomProfile', ({ roomName, description, avatar, requesterUid }) => {
+    socket.on('updateRoomProfile', ({ roomName, newName, description, avatar, requesterUid }) => {
         const roomIndex = activeRooms.findIndex(r => r.id === roomName);
         if (roomIndex !== -1) {
-            // El UID funciona como Primary Key para validar los permisos aquí
             if (activeRooms[roomIndex].uid === requesterUid || isSuperAdmin) {
+                if(newName && newName !== roomName) {
+                    activeRooms[roomIndex].id = newName;
+                    activeRooms[roomIndex].name = newName;
+                    // Mover historial si se renombra
+                    if(roomHistory[roomName]) {
+                        roomHistory[newName] = roomHistory[roomName];
+                        delete roomHistory[roomName];
+                    }
+                }
                 if(description) activeRooms[roomIndex].description = description;
                 if(avatar) activeRooms[roomIndex].avatar = avatar;
                 broadcastRoomsUpdate();
@@ -130,7 +155,7 @@ io.on('connection', (socket) => {
     socket.on('deleteRoom', ({ roomName, requesterUid, requesterUser, requesterEmail }) => {
         const room = activeRooms.find(r => r.id === roomName);
         if (room && !['General', 'Programacion', 'Juegos'].includes(room.id)) {
-            // DOBLE VALIDACION EXTREMA POR UID O EMAIL DE DIOS
+            // VERIFICACIÓN CON EL UID PARA BORRAR SALAS
             if (room.uid === requesterUid || room.creator === requesterUser || requesterEmail === SUPER_ADMIN_EMAIL) {
                 activeRooms = activeRooms.filter(r => r.id !== roomName);
                 delete roomHistory[roomName];

@@ -22,7 +22,7 @@ let currentRoom = 'Lobby', currentRoomsData = [];
 let replyingTo = null, viewingProfile = null, selectedMsgContext = null;
 let mediaRecorder, audioChunks = []; 
 
-let userAge, userGender, userColor, userBubbleColor, userBubbleOpacity, userStatus, userAvatar, chatBg, useVibration, useNotifs, useLightMode;
+let userAge, userGender, userColor, userBubbleColor, userBubbleOpacity, userStatus, userAvatar, chatBg, userBio, useVibration, useNotifs, useLightMode;
 let myStickers = [], myFriends = [], myRequests = [], myRooms = [], mutedRooms = [];
 
 // ==========================================
@@ -83,7 +83,6 @@ window.ui = {
     }
 };
 
-// Delegación global para perfiles (Infalible)
 document.addEventListener('click', (e) => {
     const target = e.target.closest('[data-profile]');
     if (target) {
@@ -106,7 +105,7 @@ document.addEventListener('click', (e) => {
 onAuthStateChanged(auth, async (user) => {
     if (!user) return window.location.href = 'index.html';
     
-    currentUserUid = user.uid; // Primary Key
+    currentUserUid = user.uid; 
     currentUserEmail = user.email;
     isSuperAdmin = currentUserEmail === SUPER_ADMIN_EMAIL;
     
@@ -124,6 +123,7 @@ onAuthStateChanged(auth, async (user) => {
     
     userAge = cloudData.age || '';
     userGender = cloudData.gender || '';
+    userBio = cloudData.bio || ''; // Biografia añadida
     userColor = prefs.color || '#d946ef';
     userBubbleColor = prefs.bubbleColor || '#9333ea';
     userBubbleOpacity = prefs.bubbleOpacity || '0.9';
@@ -156,16 +156,17 @@ function initApp() {
     sendUserData('Lobby'); 
     window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]'));
     renderFriendsUI();
-    renderMyRoomsUI();
 }
 
 const saveAppPrefs = async () => {
-    try { await setDoc(doc(db, "usuarios", currentUserUid), { preferences: { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, avatar: userAvatar, bgLocal: chatBg, rooms: myRooms, mutedRooms: mutedRooms, stickers: myStickers, vibration: useVibration, notifications: useNotifs, lightMode: useLightMode } }, { merge: true }); } catch(e) {}
+    try { 
+        await setDoc(doc(db, "usuarios", currentUserUid), { 
+            bio: userBio,
+            preferences: { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, avatar: userAvatar, bgLocal: chatBg, rooms: myRooms, mutedRooms: mutedRooms, stickers: myStickers, vibration: useVibration, notifications: useNotifs, lightMode: useLightMode } 
+        }, { merge: true }); 
+    } catch(e) {}
 };
 
-// ==========================================
-// VISTAS Y NAVEGACIÓN
-// ==========================================
 document.querySelectorAll('.bottom-nav .nav-item[data-view]').forEach(btn => {
     btn.addEventListener('click', () => window.ui.switchView(btn.dataset.view, btn));
 });
@@ -252,7 +253,7 @@ safeAddListener('menuClearChatLocal', 'click', () => {
     showToast("Chat local vaciado");
 });
 
-// Cambiar Fondo Modal
+// Cambiar Fondo Modal (Usando FileReader crudo para máxima calidad sin compresión)
 let tempBgData = null;
 safeAddListener('menuChangeBg', 'click', () => {
     document.getElementById('chatMenuDropdown').classList.remove('show');
@@ -263,11 +264,16 @@ safeAddListener('menuResetBg', 'click', () => {
     chatBg = ''; window.ui.applyBackground(chatBg); saveAppPrefs(); showToast("Fondo quitado.");
 });
 safeAddListener('bgLocalInputChat', 'change', (e) => {
-    if(e.target.files[0]) compressImg(e.target.files[0], (b64) => {
-        tempBgData = b64;
-        document.getElementById('bgPreviewContainer').style.backgroundImage = `url('${b64}')`;
-        document.getElementById('bgPreviewModal').classList.add('active');
-    });
+    const file = e.target.files[0];
+    if(file) {
+        const r = new FileReader();
+        r.readAsDataURL(file);
+        r.onload = (ev) => {
+            tempBgData = ev.target.result;
+            document.getElementById('bgPreviewContainer').style.backgroundImage = `url('${tempBgData}')`;
+            document.getElementById('bgPreviewModal').classList.add('active');
+        };
+    }
 });
 safeAddListener('cancelBgBtn', 'click', () => {
     document.getElementById('bgPreviewModal').classList.remove('active');
@@ -281,17 +287,25 @@ safeAddListener('applyBgBtn', 'click', () => {
 const renderMyRoomsUI = () => {
     const list = document.getElementById('myJoinedRoomsList');
     if(!list) return;
+    
+    // Auto-limpiar salas fantasma (que están en myRooms pero ya no existen en currentRoomsData global)
+    const validRoomIds = currentRoomsData.map(r => r.id);
+    const originalLen = myRooms.length;
+    myRooms = myRooms.filter(id => validRoomIds.includes(id));
+    if(myRooms.length !== originalLen) saveAppPrefs(); // Guardar si detectó y limpió fantasmas
+    
     list.innerHTML = myRooms.map(rName => {
-        const rData = currentRoomsData.find(rm => rm.id === rName) || { name: rName, avatar: 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png', creator: 'Sistema' };
-        return `<li class="f-item" style="cursor:pointer;" onclick="window.enterRoomDirect('${escapeHTML(rName)}')">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <img src="${rData.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:45px; height:45px; border-radius:14px; object-fit:cover;">
+        const rData = currentRoomsData.find(rm => rm.id === rName);
+        if(!rData) return '';
+        return `<li class="f-item purp-chat-item" style="cursor:pointer;" onclick="window.enterRoomDirect('${escapeHTML(rName)}')">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <img src="${rData.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:55px; height:55px; border-radius:18px; object-fit:cover; border: 2px solid var(--border);">
                 <div style="display:flex; flex-direction:column;">
-                    <span style="font-weight:700; color:var(--text-main); font-size:1.05rem;">${escapeHTML(rData.name)}</span>
-                    <span style="color:var(--text-muted); font-size:0.75rem;">${escapeHTML(rData.creator)}</span>
+                    <span style="font-weight:800; color:var(--text-main); font-size:1.1rem;">${escapeHTML(rData.name)}</span>
+                    <span style="color:var(--accent); font-size:0.75rem; font-weight:600;"><i class="fas fa-users"></i> ${rData.userCount || 0} online</span>
                 </div>
             </div>
-            <i class="fas fa-chevron-right" style="color:var(--accent);"></i>
+            <i class="fas fa-chevron-right" style="color:var(--accent); font-size: 1.2rem;"></i>
         </li>`;
     }).join('') || '<p style="color:var(--text-muted); text-align:center;">No te has unido a ninguna sala aún.</p>';
 };
@@ -354,22 +368,20 @@ socket.on('roomProfileData', (rd) => {
         if(rt) rt.innerHTML = `<img src="${rd.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:30px; height:30px; border-radius:10px; object-fit:cover;"> ${escapeHTML(rd.name)}`;
         const rc = document.getElementById('roomCreator'); if(rc) rc.textContent = `por ${escapeHTML(rd.creator)}`;
         
-        // El creador es el rey
-        const canEdit = (rd.uid === currentUserUid || rd.creator === currentUsername || isSuperAdmin);
-        const brs = document.getElementById('btnRoomSettings'); if(brs) brs.style.display = canEdit ? 'block' : 'none';
+        const canEdit = (rd.uid === currentUserUid || isSuperAdmin);
         
         document.getElementById('rProfileAvatar').src = rd.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png';
         document.getElementById('rProfileName').textContent = escapeHTML(rd.name);
         document.getElementById('rProfileCreator').textContent = `Creador: ${escapeHTML(rd.creator)}`;
         document.getElementById('rProfileDesc').textContent = rd.description ? escapeHTML(rd.description) : "Una sala para conversar de todo un poco.";
         
-        // Switch de Silencio
         const mt = document.getElementById('muteRoomToggle');
         if(mt) mt.checked = mutedRooms.includes(rd.name);
 
         const editSec = document.getElementById('rProfileEditSection');
         if (canEdit) {
             editSec.style.display = 'block';
+            document.getElementById('rEditName').value = escapeHTML(rd.name); // Renombrar añadido
             document.getElementById('rEditDesc').value = rd.description ? escapeHTML(rd.description) : "";
             tempRoomAvatar = rd.avatar;
         } else {
@@ -384,8 +396,17 @@ safeAddListener('rEditAvatarInput', 'change', (e) => {
 });
 
 safeAddListener('saveRoomProfileBtn', 'click', () => {
+    const nName = escapeHTML(document.getElementById('rEditName').value);
     const nDesc = escapeHTML(document.getElementById('rEditDesc').value);
-    socket.emit('updateRoomProfile', { roomName: currentRoom, description: nDesc, avatar: tempRoomAvatar, requesterUid: currentUserUid });
+    // SE ENVÍA UID PARA VALIDAR EN SERVIDOR
+    socket.emit('updateRoomProfile', { roomName: currentRoom, newName: nName, description: nDesc, avatar: tempRoomAvatar, requesterUid: currentUserUid });
+    
+    // Update local references immediately if name changed
+    if(nName && nName !== currentRoom) {
+        myRooms = myRooms.map(r => r === currentRoom ? nName : r);
+        currentRoom = nName;
+        saveAppPrefs();
+    }
     showToast("Sala actualizada");
 });
 
@@ -396,7 +417,7 @@ safeAddListener('deleteRoomBtnActual', 'click', () => {
     }
 });
 socket.on('forceLeaveRoom', (dr) => { 
-    if(currentRoom === dr) { showToast(`La sala fue eliminada globalmente.`); window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]')); } 
+    if(currentRoom === dr) { showToast(`La sala fue eliminada.`); window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]')); } 
     myRooms = myRooms.filter(r => r !== dr);
     saveAppPrefs();
     renderMyRoomsUI();
@@ -413,7 +434,6 @@ safeAddListener('muteRoomToggle', 'change', (e) => {
 // ==========================================
 document.querySelectorAll('.picker-tab, .f-tab').forEach(tab => {
     tab.addEventListener('click', (e) => {
-        // Uso closest para asegurar que el clic agarre el botón, incluso si tocan el icono dentro
         const realTab = e.target.closest('button');
         if(!realTab) return;
         const container = realTab.closest('.friends-container') || realTab.closest('.unified-picker');
@@ -441,6 +461,7 @@ safeAddListener('bubbleOpacity', 'input', (e) => { vibrate(15); });
 safeAddListener('editProfileToggleBtn', 'click', () => {
     const editSec = document.getElementById('dProfileEditSection');
     editSec.style.display = editSec.style.display === 'none' ? 'block' : 'none';
+    document.getElementById('bioInput').value = userBio;
     document.getElementById('colorPicker').value = userColor;
     document.getElementById('bubbleColorPicker').value = userBubbleColor;
     document.getElementById('bubbleOpacity').value = userBubbleOpacity;
@@ -451,6 +472,7 @@ safeAddListener('avatarInput', 'change', (e) => { if(e.target.files[0]) compress
 safeAddListener('saveProfileBtn', 'click', async () => {
     const btn = document.getElementById('saveProfileBtn'); btn.textContent = 'Guardando...'; btn.disabled = true;
     userColor = document.getElementById('colorPicker').value; userBubbleColor = document.getElementById('bubbleColorPicker').value; userBubbleOpacity = document.getElementById('bubbleOpacity').value; userStatus = document.getElementById('statusSelect').value;
+    userBio = escapeHTML(document.getElementById('bioInput').value.trim()); // Bio Guardada y Sanitizada
     
     try { 
         await saveAppPrefs();
@@ -461,7 +483,7 @@ safeAddListener('saveProfileBtn', 'click', async () => {
 });
 
 // ==========================================
-// RENDERIZADO DEL PERFIL
+// RENDERIZADO DEL PERFIL DE USUARIO
 // ==========================================
 socket.on('profileData', (data) => {
     try {
@@ -485,6 +507,12 @@ socket.on('profileData', (data) => {
         const st = document.querySelector('#dProfileStatusBadge .status-text');
         if(st) st.textContent = sText;
         
+        // Muestra biografía
+        const elBio = document.getElementById('dProfileBio');
+        if(elBio) {
+            elBio.textContent = data.bio ? escapeHTML(data.bio) : 'Sin biografía.';
+        }
+
         document.getElementById('dProfileAvatar').src = data.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
         document.getElementById('dProfileBanner').style.background = `linear-gradient(135deg, ${data.color || '#d946ef'}, #18181b)`;
         
@@ -509,14 +537,14 @@ socket.on('profileData', (data) => {
         
         const wall = document.getElementById('dProfileComments');
         if(wall) {
-            wall.innerHTML = data.comments.map(c => `<div class="d-comment"><b style="color:var(--accent);">${escapeHTML(c.from)}</b> <span>${c.time} ${(data.username === currentUsername || isSuperAdmin) ? `<i class="fas fa-trash" style="color:var(--danger); cursor:pointer; margin-left:5px;" onclick="socket.emit('deleteComment', {targetUser:'${data.username}', commentId:'${c.id}', requesterUid:'${currentUserUid}', requesterEmail:'${currentUserEmail}'})"></i>` : ''}</span><p>${escapeHTML(c.text)}</p></div>`).join('') || '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center;">Muro vacío.</p>';
+            wall.innerHTML = data.comments.map(c => `<div class="d-comment"><b style="color:var(--accent);">${escapeHTML(c.from)}</b> <span>${c.time} ${(data.username === currentUsername || isSuperAdmin) ? `<i class="fas fa-trash" style="color:var(--danger); cursor:pointer; margin-left:5px;" onclick="window.ui.deleteComment('${escapeHTML(data.username)}', '${c.id}')"></i>` : ''}</span><p>${escapeHTML(c.text)}</p></div>`).join('') || '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center;">Muro vacío.</p>';
         }
 
         document.getElementById('discordProfileModal').classList.add('active');
         const editSection = document.getElementById('dProfileEditSection');
         if(editSection) editSection.style.display = 'none'; 
 
-    } catch (err) { console.error("Error renderizando perfil:", err); }
+    } catch (err) { console.error("Error al renderizar perfil:", err); }
 });
 
 safeAddListener('dCommentBtn', 'click', () => { const text = escapeHTML(document.getElementById('dCommentText').value.trim()); if(text && viewingProfile) { socket.emit('addComment', { targetUser: viewingProfile, from: currentUsername, text: text, time: new Date().toLocaleDateString() }); document.getElementById('dCommentText').value = ''; } });
@@ -524,7 +552,7 @@ socket.on('newProfileComment', (data) => { if(viewingProfile === data.targetUser
 safeAddListener('closeDiscordProfileBtn', 'click', () => { document.getElementById('discordProfileModal').classList.remove('active'); });
 
 // ==========================================
-// LISTAS SOCIALES Y GLOBALES 
+// SOCIAL (AMIGOS / GLOBALES)
 // ==========================================
 const renderFriendsUI = () => {
     const gl = (c, arr, isR) => { 
@@ -555,7 +583,7 @@ socket.on('updateGlobalUsers', (users) => {
 });
 
 // ==========================================
-// EMOJIS, STICKERS Y GIFS VIVOS
+// EMOJIS, STICKERS Y GIFS REPARADOS
 // ==========================================
 const up = document.getElementById('unifiedPicker');
 safeAddListener('toggleUnifiedPickerBtn', 'click', () => { if(up) up.classList.toggle('active'); if(up && up.classList.contains('active')) updateStickerMenu(); });
@@ -582,30 +610,12 @@ safeAddListener('doGifSearchBtn', 'click', async () => {
 });
 
 // ==========================================
-// COMPARTIR
-// ==========================================
-safeAddListener('shareBtnChat', 'click', async () => {
-    if (navigator.share) {
-        try {
-            await navigator.share({
-                title: 'Nani? App',
-                text: `¡Únete a mí en la sala ${currentRoom} en Nani!`,
-                url: window.location.href
-            });
-        } catch (err) { console.log('Error compartiendo:', err); }
-    } else {
-        showToast("Tu navegador no soporta la función de compartir nativa.", "error");
-    }
-});
-
-
-// ==========================================
 // ENVÍO DE MENSAJES Y NOTAS DE VOZ MESSENGER STYLE
 // ==========================================
 const enviarMensaje = (texto, tipo = 'text') => {
     if (!texto) return;
     const safeText = tipo === 'text' ? escapeHTML(texto) : texto; 
-    const idUnicoMsg = Date.now().toString() + Math.floor(Math.random()*1000); // Genero ID antes de enviar
+    const idUnicoMsg = Date.now().toString() + Math.floor(Math.random()*1000); 
     
     socket.emit('chatMessage', { msgId: idUnicoMsg, uid: currentUserUid, username: currentUsername, text: safeText, type: tipo, room: currentRoom, color: userColor, avatar: userAvatar, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, reply: replyingTo, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
     const cbtn = document.getElementById('cancelReplyBtn'); if(cbtn) cbtn.click(); 
@@ -623,8 +633,9 @@ const recOverlay = document.getElementById('recordingOverlay');
 
 const startRecording = async (e) => {
     if(e) e.preventDefault();
+    // Verifica si la API existe y si es seguro el entorno (HTTPS o localhost)
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        return showToast("Tu navegador bloquea el micrófono. Necesitas HTTPS.", "error");
+        return showToast("Tu navegador bloquea el micrófono. Necesitas HTTPS seguro.", "error");
     }
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -645,7 +656,7 @@ const startRecording = async (e) => {
             stream.getTracks().forEach(t => t.stop());
             isRecording = false;
         });
-    } catch(err) { showToast('Permiso de micrófono denegado o no disponible.', 'error'); }
+    } catch(err) { showToast('Permiso de micrófono denegado.', 'error'); }
 };
 const stopRecording = (e) => {
     if(e) e.preventDefault();
@@ -669,7 +680,12 @@ safeAddListener('fileInput', 'change', (e) => {
     if(file.size > 8 * 1024 * 1024) return showToast("El archivo supera 8MB.", "error");
 
     const isImage = file.type.startsWith('image/');
-    if (isImage && file.type !== 'image/gif') { compressImg(file, (b64) => enviarMensaje(b64, 'image')); } 
+    if (isImage && file.type !== 'image/gif') {
+        // Enviar imágenes pesadas via compresión
+        const r = new FileReader();
+        r.readAsDataURL(file);
+        r.onload = (ev) => { enviarMensaje(ev.target.result, 'image'); }; 
+    } 
     else {
         const r = new FileReader();
         r.readAsDataURL(file);
@@ -702,7 +718,7 @@ const renderMessage = (msg) => {
         const safeReplyUser = escapeHTML(msg.reply.username);
         const safeReplyText = escapeHTML(msg.reply.text);
         const isReplyMedia = msg.reply.text.startsWith('data:') || msg.reply.text.startsWith('http');
-        // WHATSAPP STYLE SCROLL TO REPLY
+        // WHATSAPP STYLE SCROLL TO REPLY (Animado)
         rHtml = `<div class="quoted-message" onclick="window.ui.scrollToMessage('${msg.reply.msgId}')" style="border-left-color: ${isMe ? '#fff' : cNameColor}; cursor:pointer;"><strong style="color: ${isMe ? '#fff' : cNameColor};">${safeReplyUser}</strong><p>${isReplyMedia ? '📷 Media' : safeReplyText}</p></div>`;
     }
 
@@ -737,6 +753,7 @@ socket.on('message', renderMessage);
 safeAddListener('searchInput', 'input', (e) => { const term = e.target.value.toLowerCase(); document.querySelectorAll('.message').forEach(m => { m.style.display = (m.querySelector('.text, .file-message')?.innerText.toLowerCase() || '').includes(term) ? 'block' : 'none'; }); });
 safeAddListener('cancelReplyBtn', 'click', () => { replyingTo = null; document.getElementById('replyPreview').classList.remove('active'); });
 
+// COMPARTIR Y MENÚ CONTEXTUAL MENSAJES
 const ctxMenu = document.getElementById('contextMenu'); let pressTimer;
 const showContextMenu = (e, msgData) => {
     e.preventDefault(); selectedMsgContext = msgData;
@@ -752,13 +769,30 @@ document.addEventListener('click', (e) => { if(!e.target.closest('.context-menu'
 
 safeAddListener('ctxProfile', 'click', () => { window.ui.openProfile(selectedMsgContext.username); ctxMenu.classList.remove('active'); });
 safeAddListener('ctxReply', 'click', () => {
-    replyingTo = { username: selectedMsgContext.username, text: selectedMsgContext.text, msgId: selectedMsgContext.msgId }; // msgId incluido para Whatsapp scroll
+    replyingTo = { username: selectedMsgContext.username, text: selectedMsgContext.text, msgId: selectedMsgContext.msgId }; // msgId añadido
     document.getElementById('replyName').textContent = escapeHTML(selectedMsgContext.username);
     document.getElementById('replyText').textContent = selectedMsgContext.type === 'image' ? '📷 Imagen' : (selectedMsgContext.type === 'audio' ? '🎤 Audio' : escapeHTML(selectedMsgContext.text));
     document.getElementById('replyPreview').classList.add('active'); 
     const mi = document.getElementById('messageInput'); if(mi) mi.focus();
     ctxMenu.classList.remove('active');
 });
+
+// NUEVO BOTÓN COMPARTIR
+safeAddListener('ctxShare', 'click', async () => {
+    if (navigator.share && selectedMsgContext) {
+        try {
+            await navigator.share({
+                title: 'Mensaje de Nani App',
+                text: selectedMsgContext.type === 'text' ? `De ${selectedMsgContext.username}: "${selectedMsgContext.text}"` : `¡Mira esto en la sala ${currentRoom}!`,
+                url: window.location.href
+            });
+        } catch (err) { console.log('Error compartiendo:', err); }
+    } else {
+        showToast("Tu navegador no soporta compartir aquí.", "error");
+    }
+    ctxMenu.classList.remove('active');
+});
+
 safeAddListener('ctxSaveSticker', 'click', () => {
     if(!myStickers.includes(selectedMsgContext.text)) { myStickers.push(selectedMsgContext.text); setDoc(doc(db, "usuarios", currentUserUid), { preferences: { stickers: myStickers } }, { merge: true }); updateStickerMenu(); showToast("Sticker Guardado"); vibrate(100); }
     ctxMenu.classList.remove('active');
