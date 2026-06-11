@@ -9,6 +9,7 @@
     <script>
         if(localStorage.getItem('nani_theme') === 'light') {
             document.documentElement.classList.add('light-theme');
+            document.addEventListener("DOMContentLoaded", () => document.body.classList.add('light-theme'));
         }
     </script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -46,8 +47,8 @@
         <div id="viewLobby" class="app-view active">
             <div class="lobby-center-box">
                 <div class="lobby-icon-container"><i class="fas fa-meteor lobby-icon"></i></div>
-                <h2 style="font-size: 2.2rem; margin-bottom: 10px; text-align: center;">Comunidad Nani</h2>
-                <p style="color: var(--text-muted); margin-bottom: 30px; text-align: center;">Explora el universo de salas o crea la tuya propia.</p>
+                <h2 style="font-size: 2.5rem; margin-bottom: 5px; text-align: center;">Nani?</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px; text-align: center; font-weight: 500;">Conoce gente, haz amigos, ¡bienvenido a Nani!</p>
                 
                 <div class="create-room">
                     <input type="text" id="newRoomInput" placeholder="Nombra tu nueva sala..." autocomplete="off">
@@ -68,7 +69,7 @@
                 <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Mis Chats</h2>
                 <div class="friends-tabs">
                     <button class="f-tab active" data-target="myJoinedRoomsList">Mis Salas</button>
-                    <button class="f-tab" data-target="myDMsList">Mensajes Privados</button>
+                    <button class="f-tab" data-target="myDMsList">Mensajes Privados <span id="dmTabBadge" class="nav-badge" style="display:none;"></span></button>
                 </div>
                 <ul id="myJoinedRoomsList" class="f-list active" style="gap: 15px;"></ul>
                 <ul id="myDMsList" class="f-list" style="gap: 15px;"></ul>
@@ -80,7 +81,7 @@
                 <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Social</h2>
                 <div class="friends-tabs">
                     <button class="f-tab active" data-target="myFriendsList">Mis Amigos</button>
-                    <button class="f-tab" data-target="pendingRequestsList">Solicitudes <span id="reqTabBadge" class="nav-badge" style="display:none;">!</span></button>
+                    <button class="f-tab" data-target="pendingRequestsList">Solicitudes <span id="reqTabBadge" class="nav-badge" style="display:none;"></span></button>
                     <button class="f-tab" data-target="globalLobbyUsersList">En línea</button>
                 </div>
                 <ul id="myFriendsList" class="f-list active"></ul>
@@ -106,7 +107,7 @@
                             <li id="menuChangeBg"><i class="fas fa-image" style="color:var(--accent); margin-right:8px;"></i> Cambiar Fondo</li>
                             <li id="menuResetBg"><i class="fas fa-eraser" style="margin-right:8px;"></i> Quitar Fondo</li>
                             <hr style="border-color: var(--border); margin: 5px 0;">
-                            <li id="menuClearChatLocal" class="danger-text"><i class="fas fa-broom" style="margin-right:8px;"></i> Vaciar Chat Local</li>
+                            <li id="menuClearChatLocal" class="danger-text"><i class="fas fa-broom" style="margin-right:8px;"></i> Vaciar Chat</li>
                         </ul>
                     </div>
                 </div>
@@ -191,7 +192,7 @@
 <div id="contextMenu" class="context-menu">
     <button id="ctxProfile"><i class="fas fa-user"></i> Ver Perfil</button>
     <button id="ctxReply"><i class="fas fa-reply"></i> Responder</button>
-    <button id="ctxShare"><i class="fas fa-share-alt"></i> Compartir</button>
+    <button id="ctxShare"><i class="fas fa-share-alt"></i> Copiar Mensaje</button>
     <button id="ctxSaveSticker"><i class="fas fa-star"></i> Guardar Sticker</button>
     <button id="ctxDelete" class="danger-text"><i class="fas fa-trash"></i> Eliminar</button>
 </div>
@@ -311,7 +312,7 @@
         <div class="discord-body">
             <div id="dProfileActions" style="display:flex; gap:10px; margin-bottom:15px;">
                 <button id="dProfileDMBtn" class="btn-primary" style="flex:1;" data-dm-create=""><i class="fas fa-paper-plane"></i> Mensaje Directo</button>
-                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir Amigo</button>
+                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
             </div>
             <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro del Usuario</h4>
             <div class="discord-comments" id="dProfileComments"></div>
