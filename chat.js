@@ -23,9 +23,10 @@ let replyingTo = null, viewingProfile = null, selectedMsgContext = null;
 
 let userAge, userGender, userColor, userBubbleColor, userBubbleOpacity, userStatus, userAvatar, chatBg, userBio, useVibration, useNotifs, useLightMode;
 let myStickers = [], myFriends = [], myRequests = [], myRooms = [], mutedRooms = [];
+let pendingSentRequests = [];
 
 // ==========================================
-// UTILIDADES Y SEGURIDAD (SIN AUDIO)
+// SEGURIDAD: SANITIZACIÓN ANTI-XSS
 // ==========================================
 const escapeHTML = (str) => {
     if(typeof str !== 'string') return '';
@@ -38,7 +39,36 @@ const showToast = (msg, type = 'success') => {
 };
 const hexToRgba = (hex, op) => { let r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${op})`; };
 const vibrate = (ms) => { if(useVibration && navigator.vibrate) navigator.vibrate(ms); };
-const compressImg = (file, cb) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = e => { const i = new Image(); i.src = e.target.result; i.onload = () => { const c = document.createElement('canvas'); const sc = Math.min(800/i.width, 1); c.width = i.width*sc; c.height = i.height*sc; c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); cb(c.toDataURL('image/jpeg', 0.8)); }; }; };
+
+// COMPRESOR ULTRA-OPTIMIZADO (Especial para Avatares < 1MB)
+const compressAvatar = (file, cb) => { 
+    const r = new FileReader(); r.readAsDataURL(file); 
+    r.onload = e => { 
+        const i = new Image(); i.src = e.target.result; 
+        i.onload = () => { 
+            const c = document.createElement('canvas'); 
+            const sc = Math.min(300/i.width, 1); // Forzamos 300px max para evitar bugs de límite en Firebase
+            c.width = i.width*sc; c.height = i.height*sc; 
+            c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); 
+            cb(c.toDataURL('image/jpeg', 0.6)); // Calidad reducida inteligentemente
+        }; 
+    }; 
+};
+
+// COMPRESOR NORMAL PARA CHAT
+const compressImg = (file, cb) => { 
+    const r = new FileReader(); r.readAsDataURL(file); 
+    r.onload = e => { 
+        const i = new Image(); i.src = e.target.result; 
+        i.onload = () => { 
+            const c = document.createElement('canvas'); 
+            const sc = Math.min(800/i.width, 1); 
+            c.width = i.width*sc; c.height = i.height*sc; 
+            c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); 
+            cb(c.toDataURL('image/jpeg', 0.8)); 
+        }; 
+    }; 
+};
 
 const safeAddListener = (id, event, handler) => {
     const el = document.getElementById(id);
@@ -46,7 +76,7 @@ const safeAddListener = (id, event, handler) => {
 };
 
 // ==========================================
-// LÓGICA DE UI CENTRAL Y EVENT DELEGATION
+// MÉTODOS GLOBALES DE UI
 // ==========================================
 window.ui = {
     openProfile: (username) => {
@@ -64,14 +94,23 @@ window.ui = {
         }
     },
     switchView: (viewId, btnElement) => {
-        document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.app-view').forEach(v => {
+            v.classList.remove('active');
+            v.style.zIndex = '1';
+        });
         document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
-        const tv = document.getElementById(viewId); if(tv) tv.classList.add('active');
+        
+        const tv = document.getElementById(viewId); 
+        if(tv) {
+            tv.classList.add('active');
+            tv.style.zIndex = '5';
+        }
         if(btnElement) btnElement.classList.add('active');
+        
         if(viewId === 'viewLobby' && currentRoom !== 'Lobby') {
             currentRoom = 'Lobby'; socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
         }
-        if(viewId === 'viewSocial') { const b = document.getElementById('navSocialBadge'); if(b) b.style.display = 'none'; }
+        if(viewId === 'viewSocial') { const b = document.getElementById('reqTabBadge'); if(b) b.style.display = 'none'; }
         if(viewId === 'viewChats') { const b = document.getElementById('navChatsBadge'); if(b) b.style.display = 'none'; }
     },
     scrollToMessage: (msgId) => {
@@ -81,26 +120,14 @@ window.ui = {
             el.classList.add('highlight-msg');
             setTimeout(() => el.classList.remove('highlight-msg'), 2000);
         }
-    },
-    enterRoomDirect: (nr) => {
-        if(currentRoom === nr && nr !== 'Lobby') return;
-        currentRoom = nr; 
-        const elT = document.getElementById('roomTitle'); if(elT) elT.innerHTML = escapeHTML(nr.replace(currentUsername, '').replace('_', ''));
-        document.getElementById('chatMessages').innerHTML = ''; 
-        checkRoomMembership();
-        socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
-        window.ui.switchView('viewChat', null);
-        socket.emit('getRoomProfile', currentRoom);
-    },
-    openDMRoom: (friendName) => {
-        const roomName = [currentUsername, friendName].sort().join('_');
-        window.ui.enterRoomDirect(roomName);
     }
 };
 
-// UN SOLO EVENT LISTENER GLOBAL (Cero botones muertos)
+// ==========================================
+// DELEGADOR GLOBAL DE EVENTOS (EVITA BLOQUEOS 100%)
+// ==========================================
 document.addEventListener('click', (e) => {
-    // Abrir perfiles
+    // 1. Perfiles
     const profileTarget = e.target.closest('[data-profile]');
     if (profileTarget) {
         let username = profileTarget.getAttribute('data-profile');
@@ -116,47 +143,64 @@ document.addEventListener('click', (e) => {
         return;
     }
     
-    // Unirse a Salas
+    // 2. Unirse a Salas
     const roomTarget = e.target.closest('[data-room]');
     if (roomTarget) {
         window.ui.enterRoomDirect(roomTarget.getAttribute('data-room'));
         return;
     }
 
-    // Entrar a DMs
+    // 3. Entrar a DMs
     const dmTarget = e.target.closest('[data-dm]');
     if (dmTarget) {
         window.ui.openDMRoom(dmTarget.getAttribute('data-dm'));
         return;
     }
 
-    // Acciones de Amigos (Aceptar / Rechazar)
+    // 4. Acciones Dinámicas (Amigos, Cancelar)
     const actionTarget = e.target.closest('[data-action]');
     if (actionTarget) {
         const action = actionTarget.getAttribute('data-action');
         const targetUser = actionTarget.getAttribute('data-user');
+        
         if(action === 'acceptFriend') {
             myFriends.push(targetUser);
             myRequests = myRequests.filter(r => r !== targetUser);
-            setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests, friends: myFriends }, { merge: true });
+            saveAppPrefs();
             socket.emit('acceptFriendRequest', { from: currentUsername, to: targetUser });
             renderFriendsUI();
+            
+            // Auto-guardar DM
+            const dmRoomName = [currentUsername, targetUser].sort().join('_');
+            if(!myRooms.includes(dmRoomName)) { myRooms.push(dmRoomName); saveAppPrefs(); }
+            
         } else if(action === 'rejectFriend') {
             myRequests = myRequests.filter(r => r !== targetUser);
-            setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests }, { merge: true });
+            saveAppPrefs();
             renderFriendsUI();
+        } else if(action === 'sendFriendReq') {
+            socket.emit('sendFriendRequest', { from: currentUsername, to: targetUser });
+            pendingSentRequests.push(targetUser);
+            actionTarget.setAttribute('data-action', 'cancelFriendReq');
+            actionTarget.innerHTML = '<i class="fas fa-times"></i> Cancelar Solicitud';
+            actionTarget.classList.replace('btn-primary', 'btn-danger-outline');
+        } else if(action === 'cancelFriendReq') {
+            pendingSentRequests = pendingSentRequests.filter(r => r !== targetUser);
+            actionTarget.setAttribute('data-action', 'sendFriendReq');
+            actionTarget.innerHTML = '<i class="fas fa-user-plus"></i> Añadir Amigo';
+            actionTarget.classList.replace('btn-danger-outline', 'btn-primary');
         }
         return;
     }
 
-    // Navegación Inferior Nativa
+    // 5. Navegación Inferior Nativa
     const navTarget = e.target.closest('.bottom-nav .nav-item[data-view]');
     if (navTarget) {
         window.ui.switchView(navTarget.dataset.view, navTarget);
         return;
     }
 
-    // Pestañas Genéricas
+    // 6. Pestañas Genéricas
     const tabTarget = e.target.closest('.picker-tab, .f-tab');
     if (tabTarget) {
         const container = tabTarget.closest('.friends-container') || tabTarget.closest('.unified-picker');
@@ -170,22 +214,57 @@ document.addEventListener('click', (e) => {
         return;
     }
 
-    // Creador DM Directo desde Modal
+    // 7. Creador DM Directo desde Modal
     const dmCreateTarget = e.target.closest('[data-dm-create]');
     if(dmCreateTarget && viewingProfile) {
         document.getElementById('discordProfileModal').classList.remove('active'); 
         window.ui.openDMRoom(viewingProfile);
         return;
     }
+
+    // 8. Botones de Onboarding
+    if(e.target.id === 'nextOnboardBtn') {
+        const age = document.getElementById('onboardAge').value;
+        if(age >= 13) {
+            document.getElementById('onboardStep1').classList.remove('active');
+            document.getElementById('onboardStep2').classList.add('active');
+        } else showToast("Debes ser mayor de 13 años.", 'error');
+        return;
+    }
+    if(e.target.id === 'backOnboardBtn') {
+        document.getElementById('onboardStep2').classList.remove('active');
+        document.getElementById('onboardStep1').classList.add('active');
+        return;
+    }
+    const genderBtn = e.target.closest('.gender-btn');
+    if (genderBtn) {
+        document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
+        genderBtn.classList.add('active');
+        tempGender = genderBtn.dataset.gender;
+        return;
+    }
+    if(e.target.id === 'finishOnboardBtn') {
+        const age = document.getElementById('onboardAge').value;
+        if(age && tempGender) {
+            setDoc(doc(db, "usuarios", currentUserUid), { age: age, gender: tempGender }, { merge: true }).then(()=>{
+                userAge = age; userGender = tempGender;
+                document.getElementById('onboardingModal').classList.remove('active');
+                socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
+                showToast("Perfil completado.");
+            }).catch(()=> showToast("Error al guardar.", 'error'));
+        } else showToast("Selecciona tu género.", 'error');
+        return;
+    }
 });
 
 // ==========================================
-// INICIO Y AUTENTICACIÓN
+// INICIO Y CONFIGURACIÓN
 // ==========================================
+let tempGender = '';
 onAuthStateChanged(auth, async (user) => {
     if (!user) return window.location.href = 'index.html';
     
-    currentUserUid = user.uid;
+    currentUserUid = user.uid; 
     currentUserEmail = user.email;
     isSuperAdmin = currentUserEmail === SUPER_ADMIN_EMAIL;
     
@@ -233,6 +312,9 @@ function initApp() {
     
     if (chatBg) window.ui.applyBackground(chatBg);
 
+    // Sistema de Auto-Resurrección de Salas (Si el servidor se reinició, le devolvemos nuestras salas)
+    socket.emit('reviveRooms', myRooms.filter(r => !r.includes('_')).map(r => ({id: r, name: r, creator: currentUsername, uid: currentUserUid, description: 'Sala restaurada.', avatar: 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'})));
+
     socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: 'Lobby', color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
     
     window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]'));
@@ -250,39 +332,6 @@ const saveAppPrefs = async () => {
         }, { merge: true }); 
     } catch(e) {}
 };
-
-// ==========================================
-// ONBOARDING MANUAL
-// ==========================================
-let tempGender = '';
-safeAddListener('nextOnboardBtn', 'click', () => {
-    const age = document.getElementById('onboardAge').value;
-    if(age >= 13) {
-        document.getElementById('onboardStep1').classList.remove('active');
-        document.getElementById('onboardStep2').classList.add('active');
-    } else showToast("Debes ser mayor de 13 años.", 'error');
-});
-safeAddListener('backOnboardBtn', 'click', () => {
-    document.getElementById('onboardStep2').classList.remove('active');
-    document.getElementById('onboardStep1').classList.add('active');
-});
-document.querySelectorAll('.gender-btn').forEach(btn => btn.addEventListener('click', () => {
-    document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    tempGender = btn.dataset.gender;
-}));
-safeAddListener('finishOnboardBtn', 'click', async () => {
-    const age = document.getElementById('onboardAge').value;
-    if(age && tempGender) {
-        try {
-            await setDoc(doc(db, "usuarios", currentUserUid), { age: age, gender: tempGender }, { merge: true });
-            userAge = age; userGender = tempGender;
-            document.getElementById('onboardingModal').classList.remove('active');
-            showToast("Perfil completado.");
-        } catch(e) { showToast("Error al guardar.", 'error'); }
-    } else showToast("Selecciona tu género.", 'error');
-});
-
 
 // ==========================================
 // AJUSTES APP
@@ -349,7 +398,7 @@ safeAddListener('leaveRoomBtnActual', 'click', () => {
     }
 });
 
-// Menú Chat (3 puntitos) y Fondos HD
+// Menú Chat (3 puntitos)
 safeAddListener('btnChatMenuToggle', 'click', () => { document.getElementById('chatMenuDropdown').classList.toggle('show'); });
 document.addEventListener('click', (e) => { 
     if(!e.target.closest('.custom-dropdown')) { const d = document.getElementById('chatMenuDropdown'); if(d) d.classList.remove('show'); }
@@ -365,6 +414,7 @@ safeAddListener('menuClearChatLocal', 'click', () => {
     showToast("Chat local vaciado");
 });
 
+// Fondo HD Local
 let tempBgData = null;
 safeAddListener('menuChangeBg', 'click', () => {
     document.getElementById('chatMenuDropdown').classList.remove('show');
@@ -395,18 +445,48 @@ safeAddListener('applyBgBtn', 'click', () => {
 // ==========================================
 // RENDERIZAR "MIS CHATS" ESTILO PURP
 // ==========================================
+window.ui.openDMRoom = (friendName) => {
+    const roomName = [currentUsername, friendName].sort().join('_');
+    if(currentRoom === roomName) return;
+    currentRoom = roomName; 
+    const rt = document.getElementById('roomTitle');
+    if(rt) rt.innerHTML = `<i class="fas fa-lock" style="color:var(--accent); font-size:0.9rem;"></i> ${escapeHTML(friendName)}`;
+    document.getElementById('chatMessages').innerHTML = ''; 
+    checkRoomMembership();
+    socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
+    window.ui.switchView('viewChat', document.querySelector('.bottom-nav .nav-item[data-view="viewChats"]'));
+    
+    // Auto agregar a DM
+    if(!myRooms.includes(roomName)) { myRooms.push(roomName); saveAppPrefs(); renderMyRoomsUI(); }
+};
+
+window.ui.enterRoomDirect = (nr) => {
+    if(currentRoom === nr && nr !== 'Lobby') return;
+    currentRoom = nr; 
+    const elT = document.getElementById('roomTitle'); if(elT) elT.innerHTML = escapeHTML(nr.replace(currentUsername, '').replace('_', ''));
+    document.getElementById('chatMessages').innerHTML = ''; 
+    checkRoomMembership();
+    socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
+    window.ui.switchView('viewChat', null);
+    socket.emit('getRoomProfile', currentRoom);
+};
+
 const renderMyRoomsUI = () => {
     const listRooms = document.getElementById('myJoinedRoomsList');
     const listDMs = document.getElementById('myDMsList');
     if(!listRooms || !listDMs) return;
     
-    // Auto-limpiar salas fantasma
-    const validRoomIds = currentRoomsData.map(r => r.id);
+    // DMs extraídos de myRooms (que contienen '_')
+    const myDMRooms = myRooms.filter(r => r.includes('_') && r.includes(currentUsername));
+    
+    // Auto-limpiar salas fantasma (que no existen en global)
+    const validGlobalRoomIds = currentRoomsData.map(r => r.id);
     const originalLen = myRooms.length;
-    myRooms = myRooms.filter(id => validRoomIds.includes(id));
+    myRooms = myRooms.filter(id => id.includes('_') || validGlobalRoomIds.includes(id));
     if(myRooms.length !== originalLen) saveAppPrefs();
     
-    listRooms.innerHTML = myRooms.map(rName => {
+    // Salas Públicas
+    listRooms.innerHTML = myRooms.filter(r => !r.includes('_')).map(rName => {
         const rData = currentRoomsData.find(rm => rm.id === rName);
         if(!rData) return ''; 
         return `<li class="f-item purp-chat-item" style="cursor:pointer;" data-room="${escapeHTML(rData.id)}">
@@ -421,11 +501,18 @@ const renderMyRoomsUI = () => {
         </li>`;
     }).join('') || '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">No te has unido a ninguna sala aún.</p>';
 
-    listDMs.innerHTML = myFriends.map(friend => {
+    // Mensajes Privados (Combinados de myFriends y myDMRooms)
+    let dmUsersToDisplay = [...myFriends];
+    myDMRooms.forEach(r => {
+        const otherUser = r.replace(currentUsername, '').replace('_', '');
+        if(!dmUsersToDisplay.includes(otherUser) && otherUser !== '') dmUsersToDisplay.push(otherUser);
+    });
+
+    listDMs.innerHTML = dmUsersToDisplay.map(friend => {
         const safeF = escapeHTML(friend);
         return `<li class="f-item purp-chat-item" style="cursor:pointer;" data-dm="${safeF}">
             <div style="display:flex; align-items:center; gap:15px;">
-                <div style="width:50px; height:50px; border-radius:50%; background:var(--accent); display:flex; justify-content:center; align-items:center; font-size:1.5rem; color:#fff;"><i class="fas fa-user"></i></div>
+                <div style="width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg, var(--accent), #9333ea); display:flex; justify-content:center; align-items:center; font-size:1.5rem; color:#fff; box-shadow: 0 4px 10px rgba(217,70,239,0.3);"><i class="fas fa-user"></i></div>
                 <div style="display:flex; flex-direction:column;">
                     <span style="font-weight:800; color:var(--text-main); font-size:1.05rem;">${safeF}</span>
                     <span style="color:var(--text-muted); font-size:0.75rem;">Mensaje Directo</span>
@@ -433,7 +520,7 @@ const renderMyRoomsUI = () => {
             </div>
             <i class="fas fa-comment-dots" style="color:var(--accent); font-size: 1.2rem;"></i>
         </li>`;
-    }).join('') || '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">No tienes amigos agregados aún.</p>';
+    }).join('') || '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">No tienes chats privados aún.</p>';
 };
 
 // ==========================================
@@ -473,6 +560,7 @@ safeAddListener('createRoomBtn', 'click', () => {
     if(nr) { 
         socket.emit('createRoom', { roomName: nr, creator: currentUsername, uid: currentUserUid }); 
         el.value = ''; 
+        // Auto-unirse y entrar al crear
         if(!myRooms.includes(nr)) { myRooms.push(nr); saveAppPrefs(); }
         setTimeout(() => { window.ui.enterRoomDirect(nr); }, 300); 
     }
@@ -494,6 +582,7 @@ socket.on('roomProfileData', (rd) => {
         if(rt && !currentRoom.includes('_')) rt.innerHTML = `<img src="${rd.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:30px; height:30px; border-radius:10px; object-fit:cover;"> ${escapeHTML(rd.name)}`;
         const rc = document.getElementById('roomCreator'); if(rc && !currentRoom.includes('_')) rc.textContent = `por ${escapeHTML(rd.creator)}`;
         
+        // Validación de Poder Total: Eres el creador (UID o Username) o SuperAdmin
         const canEdit = (rd.uid === currentUserUid || rd.creator === currentUsername || isSuperAdmin);
         const brs = document.getElementById('btnRoomSettings'); if(brs) brs.style.display = canEdit ? 'block' : 'none';
         
@@ -508,7 +597,7 @@ socket.on('roomProfileData', (rd) => {
         const editSec = document.getElementById('rProfileEditSection');
         if (canEdit) {
             editSec.style.display = 'block';
-            document.getElementById('rEditName').value = escapeHTML(rd.name);
+            document.getElementById('rEditName').value = escapeHTML(rd.name); // Renombrar
             document.getElementById('rEditDesc').value = rd.description ? escapeHTML(rd.description) : "";
             tempRoomAvatar = rd.avatar;
         } else {
@@ -519,7 +608,7 @@ socket.on('roomProfileData', (rd) => {
 safeAddListener('closeRoomProfileBtn', 'click', () => { document.getElementById('roomProfileModal').classList.remove('active'); });
 
 safeAddListener('rEditAvatarInput', 'change', (e) => {
-    if(e.target.files[0]) compressImg(e.target.files[0], (b64) => { document.getElementById('rProfileAvatar').src = b64; tempRoomAvatar = b64; });
+    if(e.target.files[0]) compressAvatar(e.target.files[0], (b64) => { document.getElementById('rProfileAvatar').src = b64; tempRoomAvatar = b64; });
 });
 
 safeAddListener('saveRoomProfileBtn', 'click', () => {
@@ -542,7 +631,7 @@ safeAddListener('deleteRoomBtnActual', 'click', () => {
     }
 });
 socket.on('forceLeaveRoom', (dr) => { 
-    if(currentRoom === dr) { showToast(`La sala fue eliminada.`); window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]')); } 
+    if(currentRoom === dr) { showToast(`La sala fue eliminada globalmente.`); window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]')); } 
     myRooms = myRooms.filter(r => r !== dr);
     saveAppPrefs();
     renderMyRoomsUI();
@@ -554,8 +643,9 @@ safeAddListener('muteRoomToggle', 'change', (e) => {
     saveAppPrefs();
 });
 
+
 // ==========================================
-// AJUSTES APP (THEME, VIB)
+// AJUSTES APP E INTERRUPTORES
 // ==========================================
 safeAddListener('themeToggle', 'change', (e) => { 
     useLightMode = e.target.checked; 
@@ -565,6 +655,7 @@ safeAddListener('themeToggle', 'change', (e) => {
 });
 safeAddListener('vibToggle', 'change', (e) => { useVibration = e.target.checked; saveAppPrefs(); });
 safeAddListener('notifToggle', 'change', (e) => { useNotifs = e.target.checked; saveAppPrefs(); });
+
 safeAddListener('bubbleOpacity', 'input', (e) => { vibrate(15); });
 
 // ==========================================
@@ -579,7 +670,7 @@ safeAddListener('editProfileToggleBtn', 'click', () => {
     document.getElementById('bubbleOpacity').value = userBubbleOpacity;
     document.getElementById('statusSelect').value = userStatus;
 });
-safeAddListener('avatarInput', 'change', (e) => { if(e.target.files[0]) compressImg(e.target.files[0], (b64) => { document.getElementById('dProfileAvatar').src = b64; userAvatar = b64; }); });
+safeAddListener('avatarInput', 'change', (e) => { if(e.target.files[0]) compressAvatar(e.target.files[0], (b64) => { document.getElementById('dProfileAvatar').src = b64; userAvatar = b64; }); });
 
 safeAddListener('saveProfileBtn', 'click', async () => {
     const btn = document.getElementById('saveProfileBtn'); btn.textContent = 'Guardando...'; btn.disabled = true;
@@ -635,8 +726,13 @@ socket.on('profileData', (data) => {
             }
             if(aBtn) {
                 aBtn.style.display = 'block'; 
-                if(myFriends.includes(data.username)) { aBtn.innerHTML = '<i class="fas fa-user-check"></i> Amigo'; aBtn.disabled = true; }
-                else { aBtn.innerHTML = '<i class="fas fa-user-plus"></i> Añadir'; aBtn.disabled = false; aBtn.setAttribute('data-action', 'sendFriendReq'); aBtn.setAttribute('data-user', escapeHTML(data.username)); }
+                if(myFriends.includes(data.username)) { 
+                    aBtn.innerHTML = '<i class="fas fa-user-check"></i> Amigo'; aBtn.disabled = true; 
+                } else if(pendingSentRequests.includes(data.username)) {
+                    aBtn.innerHTML = '<i class="fas fa-times"></i> Cancelar Solicitud'; aBtn.disabled = false; aBtn.setAttribute('data-action', 'cancelFriendReq'); aBtn.setAttribute('data-user', escapeHTML(data.username)); aBtn.classList.replace('btn-primary', 'btn-danger-outline');
+                } else { 
+                    aBtn.innerHTML = '<i class="fas fa-user-plus"></i> Añadir'; aBtn.disabled = false; aBtn.setAttribute('data-action', 'sendFriendReq'); aBtn.setAttribute('data-user', escapeHTML(data.username)); aBtn.classList.replace('btn-danger-outline', 'btn-primary');
+                }
             }
             if(editBtn) editBtn.style.display = 'none';
         }
@@ -676,9 +772,8 @@ socket.on('friendRequestReceived', ({ from, to }) => {
         myRequests.push(from); 
         setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests }, { merge: true }); 
         vibrate(200); 
-        showToast(`¡${escapeHTML(from)} te envió solicitud!`, "success");
+        showToast(`¡${escapeHTML(from)} te envió una solicitud!`, "success");
         const b = document.getElementById('reqTabBadge'); if(b) b.style.display = 'inline-block';
-        const s = document.getElementById('navSocialBadge'); if(s) s.style.display = 'block';
         renderFriendsUI(); 
     }
 });
@@ -698,7 +793,7 @@ socket.on('updateGlobalUsers', (users) => {
 });
 
 // ==========================================
-// EMOJIS, STICKERS Y GIFS VIVOS
+// EMOJIS, STICKERS Y GIFS VIVOS Y RÁPIDOS
 // ==========================================
 const up = document.getElementById('unifiedPicker');
 safeAddListener('toggleUnifiedPickerBtn', 'click', () => { if(up) up.classList.toggle('active'); if(up && up.classList.contains('active')) updateStickerMenu(); });
@@ -725,7 +820,7 @@ safeAddListener('doGifSearchBtn', 'click', async () => {
 });
 
 // ==========================================
-// ENVÍO DE MENSAJES Y ARCHIVOS (SIN AUDIO)
+// ENVÍO DE MENSAJES Y ARCHIVOS (SIN AUDIO PESADO)
 // ==========================================
 const enviarMensaje = (texto, tipo = 'text') => {
     if (!texto) return;
@@ -748,11 +843,7 @@ safeAddListener('fileInput', 'change', (e) => {
     if(file.size > 8 * 1024 * 1024) return showToast("El archivo supera 8MB.", "error");
 
     const isImage = file.type.startsWith('image/');
-    if (isImage && file.type !== 'image/gif') {
-        const r = new FileReader();
-        r.readAsDataURL(file);
-        r.onload = (ev) => { enviarMensaje(ev.target.result, 'image'); }; 
-    } 
+    if (isImage && file.type !== 'image/gif') { compressImg(file, (b64) => enviarMensaje(b64, 'image')); } 
     else {
         const r = new FileReader();
         r.readAsDataURL(file);
@@ -764,11 +855,7 @@ safeAddListener('fileInput', 'change', (e) => {
 });
 
 socket.on('messageDeleted', (msgId) => { const m = document.getElementById(`msg-${msgId}`); if(m) m.remove(); });
-
-socket.on('loadHistory', (history) => { 
-    const cm = document.getElementById('chatMessages'); 
-    if(cm) { cm.innerHTML = ''; history.forEach(msg => renderMessage(msg, true)); cm.scrollTop = cm.scrollHeight; }
-});
+socket.on('loadHistory', (history) => { const cm = document.getElementById('chatMessages'); if(cm) { cm.innerHTML = ''; history.forEach(msg => renderMessage(msg, true)); cm.scrollTop = cm.scrollHeight; }});
 
 const renderMessage = (msg, isHistoryLoad = false) => {
     const div = document.createElement('div'); div.id = `msg-${msg.msgId}`;
@@ -789,7 +876,7 @@ const renderMessage = (msg, isHistoryLoad = false) => {
         const safeReplyUser = escapeHTML(msg.reply.username);
         const safeReplyText = escapeHTML(msg.reply.text);
         const isReplyMedia = msg.reply.text.startsWith('data:') || msg.reply.text.startsWith('http');
-        // WHATSAPP STYLE SCROLL TO REPLY
+        // WHATSAPP STYLE SCROLL TO REPLY ANIMADO
         rHtml = `<div class="quoted-message" onclick="window.ui.scrollToMessage('${msg.reply.msgId}')" style="border-left-color: ${isMe ? '#fff' : cNameColor}; cursor:pointer;"><strong style="color: ${isMe ? '#fff' : cNameColor};">${safeReplyUser}</strong><p>${isReplyMedia ? '📷 Media' : safeReplyText}</p></div>`;
     }
 
@@ -806,39 +893,40 @@ const renderMessage = (msg, isHistoryLoad = false) => {
     div.innerHTML = `<div class="msg-header" data-profile="${safeUsername}" style="cursor:pointer;"><img src="${safeAvatar}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'" class="msg-avatar"><span style="color: ${cNameColor}; font-weight: 800;">${safeUsername}</span></div>${rHtml} ${content} <div class="msg-footer"><span class="time">${msg.time}</span></div>`;
     
     div.addEventListener('contextmenu', (e) => { e.preventDefault(); showContextMenu(e, msg); });
-    div.addEventListener('pointerdown', (e) => { pressTimer = window.setTimeout(() => showContextMenu(e, msg), 600); });
-    div.addEventListener('pointerup', () => clearTimeout(pressTimer)); 
-    div.addEventListener('pointercancel', () => clearTimeout(pressTimer)); 
-    div.addEventListener('pointermove', () => clearTimeout(pressTimer));
+    let touchTimer;
+    div.addEventListener('touchstart', (e) => { touchTimer = window.setTimeout(() => showContextMenu(e, msg), 600); }, {passive: true});
+    div.addEventListener('touchend', () => clearTimeout(touchTimer)); 
+    div.addEventListener('touchmove', () => clearTimeout(touchTimer));
 
     const cm = document.getElementById('chatMessages'); 
     if(cm) { cm.appendChild(div); cm.scrollTop = cm.scrollHeight; }
     
+    // NOTIFICACIÓN PUSH Y SONIDO
     if(!isHistoryLoad && !isMe && useNotifs && !mutedRooms.includes(msg.room)) { 
         if(msg.room === currentRoom) {
             const ns = document.getElementById('notificationSound'); 
             if(ns) ns.play().catch(()=>{}); 
             vibrate(150); 
         } else {
-            // Es un DM oculto o sala no activa
-            const bChats = document.getElementById('navChatsBadge'); if(bChats) bChats.style.display = 'block';
-            showToast(`Nuevo mensaje en ${escapeHTML(msg.room.replace(currentUsername, '').replace('_', ''))}`, 'success');
+            // Notificar que llegó mensaje en otra parte
+            if(msg.room.includes('_')) {
+                const bChats = document.getElementById('navChatsBadge'); if(bChats) bChats.style.display = 'inline-block';
+                showToast(`Nuevo mensaje privado de ${escapeHTML(msg.username)}`, 'success');
+            } else if (!mutedRooms.includes(msg.room)) {
+                showToast(`Nuevo mensaje en ${escapeHTML(msg.room)}`, 'success');
+            }
         }
     }
 };
 
 socket.on('message', (msg) => {
-    // Si el mensaje es para la sala actual, renderizarlo.
     if(msg.room === currentRoom) {
         renderMessage(msg);
-    } else {
-        // Si no es la sala actual, verificar si es DM y notificar
-        if(!msg.room.includes('_')) return; // Solo notificar DMs para evitar spam de globales
-        const isMe = msg.uid === currentUserUid;
-        if(!isMe && useNotifs) {
-            const bChats = document.getElementById('navChatsBadge'); if(bChats) bChats.style.display = 'block';
-            showToast(`Nuevo mensaje de ${escapeHTML(msg.username)}`, 'success');
-        }
+    } else if(msg.room.includes('_') && msg.room.includes(currentUsername)) {
+        const bChats = document.getElementById('navChatsBadge'); if(bChats) bChats.style.display = 'inline-block';
+        showToast(`Nuevo mensaje privado de ${escapeHTML(msg.username)}`, 'success');
+    } else if (myRooms.includes(msg.room) && !mutedRooms.includes(msg.room) && useNotifs) {
+        showToast(`Nuevo mensaje en ${escapeHTML(msg.room)}`, 'success');
     }
 });
 
@@ -846,7 +934,7 @@ safeAddListener('searchInput', 'input', (e) => { const term = e.target.value.toL
 safeAddListener('cancelReplyBtn', 'click', () => { replyingTo = null; document.getElementById('replyPreview').classList.remove('active'); });
 
 // COMPARTIR Y MENÚ CONTEXTUAL MENSAJES
-const ctxMenu = document.getElementById('contextMenu'); let pressTimer;
+const ctxMenu = document.getElementById('contextMenu');
 const showContextMenu = (e, msgData) => {
     selectedMsgContext = msgData;
     let x = e.pageX || (e.touches && e.touches[0].pageX); let y = e.pageY || (e.touches && e.touches[0].pageY);
@@ -870,17 +958,22 @@ safeAddListener('ctxReply', 'click', () => {
     ctxMenu.classList.remove('active');
 });
 
+// COMPARTIR FALLBACK NATIVO/PORTAPAPELES
 safeAddListener('ctxShare', 'click', async () => {
-    if (navigator.share && selectedMsgContext) {
+    if(!selectedMsgContext) return;
+    const shareText = selectedMsgContext.type === 'text' ? `De ${selectedMsgContext.username}: "${selectedMsgContext.text}"` : `Imagen/Sticker en Nani.`;
+    
+    if (navigator.share) {
         try {
-            await navigator.share({
-                title: 'Nani? App',
-                text: selectedMsgContext.type === 'text' ? `De ${selectedMsgContext.username}: "${selectedMsgContext.text}"` : `¡Mira esto en Nani!`,
-                url: window.location.href
-            });
+            await navigator.share({ title: 'Nani? App', text: shareText, url: window.location.href });
         } catch (err) { console.log('Error compartiendo:', err); }
     } else {
-        showToast("Tu navegador no soporta compartir nativo.", "error");
+        try {
+            await navigator.clipboard.writeText(shareText + " " + window.location.href);
+            showToast("Enlace copiado al portapapeles.", "success");
+        } catch(e) {
+            showToast("Tu navegador no soporta compartir.", "error");
+        }
     }
     ctxMenu.classList.remove('active');
 });
@@ -890,7 +983,6 @@ safeAddListener('ctxSaveSticker', 'click', () => {
     ctxMenu.classList.remove('active');
 });
 safeAddListener('ctxDelete', 'click', () => { 
-    // SE ENVÍA EL UID MAESTRO AL SERVIDOR PARA QUE VALIDE LA ACCIÓN REAL
     socket.emit('deleteMessage', { room: currentRoom, msgId: selectedMsgContext.msgId, requesterUid: currentUserUid, requesterEmail: currentUserEmail }); 
     ctxMenu.classList.remove('active'); 
 });

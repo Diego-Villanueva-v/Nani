@@ -68,7 +68,7 @@
                 <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Mis Chats</h2>
                 <div class="friends-tabs">
                     <button class="f-tab active" data-target="myJoinedRoomsList">Mis Salas</button>
-                    <button class="f-tab" data-target="myDMsList">Mensajes Privados <span id="dmTabBadge" class="nav-badge" style="display:none;">!</span></button>
+                    <button class="f-tab" data-target="myDMsList">Mensajes Privados</button>
                 </div>
                 <ul id="myJoinedRoomsList" class="f-list active" style="gap: 15px;"></ul>
                 <ul id="myDMsList" class="f-list" style="gap: 15px;"></ul>
@@ -106,7 +106,7 @@
                             <li id="menuChangeBg"><i class="fas fa-image" style="color:var(--accent); margin-right:8px;"></i> Cambiar Fondo</li>
                             <li id="menuResetBg"><i class="fas fa-eraser" style="margin-right:8px;"></i> Quitar Fondo</li>
                             <hr style="border-color: var(--border); margin: 5px 0;">
-                            <li id="menuClearChatLocal" class="danger-text"><i class="fas fa-broom" style="margin-right:8px;"></i> Vaciar Chat</li>
+                            <li id="menuClearChatLocal" class="danger-text"><i class="fas fa-broom" style="margin-right:8px;"></i> Vaciar Chat Local</li>
                         </ul>
                     </div>
                 </div>
@@ -134,7 +134,7 @@
 
             <div id="joinRoomPrompt" class="join-room-overlay">
                 <p style="margin-bottom: 15px; color: var(--text-main); font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Estás en modo espectador.</p>
-                <button id="btnJoinCurrentRoom" class="btn-primary" style="max-width: 300px; padding: 16px; font-size: 1.1rem;">Unirse a la sala</button>
+                <button id="btnJoinCurrentRoom" class="btn-primary" style="max-width: 300px; padding: 16px; font-size: 1.1rem; box-shadow: 0 10px 20px rgba(217, 70, 239, 0.4);">Unirse a la sala</button>
             </div>
 
             <div id="unifiedPicker" class="unified-picker">
@@ -180,7 +180,7 @@
             <span id="navChatsBadge" class="nav-badge" style="display:none;"></span>
         </button>
         <button class="nav-item" data-view="viewSocial">
-            <i class="fas fa-bell"></i><span>Social</span>
+            <i class="fas fa-user-friends"></i><span>Social</span>
             <span id="navSocialBadge" class="nav-badge" style="display:none;"></span>
         </button>
         <button class="nav-item" id="navMyProfileBtn" data-profile="me"><i class="fas fa-user-circle"></i><span>Perfil</span></button>
@@ -231,7 +231,7 @@
                 </div>
             </div>
 
-            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar Sala</button>
+            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar esta Sala</button>
 
             <div id="rProfileEditSection" style="display: none; border-top: 1px solid var(--border); padding-top: 15px;">
                 <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Ajustes de Creador</h4>

@@ -28,14 +28,17 @@ const broadcastRoomsUpdate = () => {
     io.emit('updateRooms', roomsWithCounts);
 };
 
-// LIMPIEZA CADA MINUTO: Elimina mensajes de más de 24 hrs en salas públicas
+// LIMPIEZA CADA MINUTO (Mantiene la memoria ligera)
 setInterval(() => {
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
     for (let room in roomHistory) {
         if (!room.includes('_')) { 
             const originalLen = roomHistory[room].length;
-            roomHistory[room] = roomHistory[room].filter(m => (now - parseInt(m.msgId)) < twentyFourHours);
+            roomHistory[room] = roomHistory[room].filter(m => {
+                const ts = parseInt(m.msgId.substring(0, 13));
+                return (now - ts) < twentyFourHours;
+            });
             if(originalLen !== roomHistory[room].length) {
                 io.to(room).emit('loadHistory', roomHistory[room].slice(-50));
             }
@@ -44,6 +47,19 @@ setInterval(() => {
 }, 60000);
 
 io.on('connection', (socket) => {
+    
+    // SISTEMA DE AUTO-RESURRECCIÓN DE SALAS (Si el servidor se reinicia, el cliente envía sus salas)
+    socket.on('reviveRooms', (clientRooms) => {
+        if(clientRooms && Array.isArray(clientRooms)) {
+            clientRooms.forEach(cr => {
+                if(!activeRooms.find(r => r.id === cr.id)) {
+                    activeRooms.push(cr);
+                }
+            });
+            broadcastRoomsUpdate();
+        }
+    });
+
     socket.on('joinRoom', (userData) => {
         if (activeUsers[socket.id]) socket.leave(activeUsers[socket.id].room);
         
@@ -55,7 +71,6 @@ io.on('connection', (socket) => {
         
         if (userData.room !== 'Lobby') {
             if (!roomHistory[userData.room]) roomHistory[userData.room] = [];
-            // Optimización de RAM: Carga solo 50 iniciales
             socket.emit('loadHistory', roomHistory[userData.room].slice(-50));
         }
 
@@ -69,12 +84,25 @@ io.on('connection', (socket) => {
         data.msgId = data.msgId || Date.now().toString(); 
         roomHistory[data.room].push(data);
         if (roomHistory[data.room].length > 100) roomHistory[data.room].shift(); 
-        io.to(data.room).emit('message', data);
+        
+        // Emisión inteligente (DMs vs Public)
+        if(data.room.includes('_')) {
+            // Es un DM. Asegurarse de enviarlo a las partes involucradas.
+            // Para eso, encontramos los sockets de los dos usuarios del DM
+            const dmUsers = data.room.split('_');
+            for(let sid in activeUsers) {
+                if(dmUsers.includes(activeUsers[sid].username)) {
+                    io.to(sid).emit('message', data);
+                }
+            }
+        } else {
+            // Emisión normal a la sala pública
+            io.to(data.room).emit('message', data);
+        }
     });
 
     socket.on('deleteMessage', ({ room, msgId, requesterUid, requesterEmail }) => {
         const msg = roomHistory[room]?.find(m => m.msgId === msgId);
-        // VALIDACIÓN ESTRICTA (PRIMARY KEY O ADMIN)
         if (requesterEmail === SUPER_ADMIN_EMAIL || (msg && msg.uid === requesterUid)) {
             if (roomHistory[room]) {
                 roomHistory[room] = roomHistory[room].filter(m => m.msgId !== msgId);
@@ -109,7 +137,6 @@ io.on('connection', (socket) => {
     socket.on('updateRoomProfile', ({ roomName, newName, description, avatar, requesterUid }) => {
         const roomIndex = activeRooms.findIndex(r => r.id === roomName);
         if (roomIndex !== -1) {
-            // El UID funciona como Primary Key para validar permisos
             if (activeRooms[roomIndex].uid === requesterUid || isSuperAdmin) {
                 if(newName && newName !== roomName) {
                     activeRooms[roomIndex].id = newName;
@@ -154,7 +181,6 @@ io.on('connection', (socket) => {
     socket.on('deleteRoom', ({ roomName, requesterUid, requesterUser, requesterEmail }) => {
         const room = activeRooms.find(r => r.id === roomName);
         if (room && !['General', 'Programacion', 'Juegos'].includes(room.id)) {
-            // DOBLE VALIDACION EXTREMA POR UID O EMAIL DE DIOS
             if (room.uid === requesterUid || room.creator === requesterUser || requesterEmail === SUPER_ADMIN_EMAIL) {
                 activeRooms = activeRooms.filter(r => r.id !== roomName);
                 delete roomHistory[roomName];
