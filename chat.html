@@ -68,7 +68,7 @@
                 <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Mis Chats</h2>
                 <div class="friends-tabs">
                     <button class="f-tab active" data-target="myJoinedRoomsList">Mis Salas</button>
-                    <button class="f-tab" data-target="myDMsList">Mensajes Privados</button>
+                    <button class="f-tab" data-target="myDMsList">Mensajes Privados <span id="dmTabBadge" class="nav-badge" style="display:none;">!</span></button>
                 </div>
                 <ul id="myJoinedRoomsList" class="f-list active" style="gap: 15px;"></ul>
                 <ul id="myDMsList" class="f-list" style="gap: 15px;"></ul>
@@ -80,7 +80,7 @@
                 <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Social</h2>
                 <div class="friends-tabs">
                     <button class="f-tab active" data-target="myFriendsList">Mis Amigos</button>
-                    <button class="f-tab" data-target="pendingRequestsList">Solicitudes</button>
+                    <button class="f-tab" data-target="pendingRequestsList">Solicitudes <span id="reqTabBadge" class="nav-badge" style="display:none;">!</span></button>
                     <button class="f-tab" data-target="globalLobbyUsersList">En línea</button>
                 </div>
                 <ul id="myFriendsList" class="f-list active"></ul>
@@ -158,11 +158,6 @@
                 <div class="picker-content" id="stickerSection"><div id="stickerResults" class="media-grid"></div></div>
             </div>
 
-            <div id="recordingOverlay" class="recording-overlay">
-                <div class="recording-pulse"></div>
-                <span class="recording-text"><i class="fas fa-microphone"></i> Grabando... Suelta para enviar.</span>
-            </div>
-
             <form id="chatForm" class="chat-form">
                 <button type="button" id="toggleUnifiedPickerBtn" class="btn-icon"><i class="fas fa-smile"></i></button>
                 <input type="file" id="fileInput" style="display: none;" accept="image/*, .pdf, .zip, .rar, .txt, .doc, .docx">
@@ -172,7 +167,6 @@
                     <input type="text" id="messageInput" placeholder="Escribe un mensaje..." autocomplete="off">
                 </div>
                 
-                <button type="button" id="voiceBtn" class="btn-icon voice-btn disable-select" title="Mantén presionado para hablar"><i class="fas fa-microphone"></i></button>
                 <button type="submit" id="sendTextBtn" class="btn-send"><i class="fas fa-paper-plane"></i></button>
             </form>
         </div>
@@ -181,8 +175,14 @@
 
     <nav class="bottom-nav">
         <button class="nav-item active" data-view="viewLobby"><i class="fas fa-compass"></i><span>Inicio</span></button>
-        <button class="nav-item" data-view="viewChats"><i class="fas fa-comment-dots"></i><span>Chats</span></button>
-        <button class="nav-item" data-view="viewSocial"><i class="fas fa-user-friends"></i><span>En línea</span></button>
+        <button class="nav-item" data-view="viewChats">
+            <i class="fas fa-comment-dots"></i><span>Chats</span>
+            <span id="navChatsBadge" class="nav-badge" style="display:none;"></span>
+        </button>
+        <button class="nav-item" data-view="viewSocial">
+            <i class="fas fa-bell"></i><span>Social</span>
+            <span id="navSocialBadge" class="nav-badge" style="display:none;"></span>
+        </button>
         <button class="nav-item" id="navMyProfileBtn" data-profile="me"><i class="fas fa-user-circle"></i><span>Perfil</span></button>
         <button class="nav-item" id="navSettingsBtn"><i class="fas fa-cog"></i><span>Ajustes</span></button>
     </nav>
@@ -231,7 +231,7 @@
                 </div>
             </div>
 
-            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar esta Sala</button>
+            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar Sala</button>
 
             <div id="rProfileEditSection" style="display: none; border-top: 1px solid var(--border); padding-top: 15px;">
                 <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Ajustes de Creador</h4>
@@ -248,7 +248,6 @@
                     <label for="rEditAvatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Foto</label>
                 </div>
                 <button id="saveRoomProfileBtn" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
-                
                 <button id="deleteRoomBtnActual" class="btn-danger" style="width: 100%; margin-top: 15px;"><i class="fas fa-trash"></i> Eliminar Sala Global</button>
             </div>
         </div>
@@ -311,7 +310,7 @@
 
         <div class="discord-body">
             <div id="dProfileActions" style="display:flex; gap:10px; margin-bottom:15px;">
-                <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje Directo</button>
+                <button id="dProfileDMBtn" class="btn-primary" style="flex:1;" data-dm-create=""><i class="fas fa-paper-plane"></i> Mensaje Directo</button>
                 <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir Amigo</button>
             </div>
             <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro del Usuario</h4>
