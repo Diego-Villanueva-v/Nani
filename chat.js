@@ -61,6 +61,7 @@ window.ui = {
         if(!bgUrl || bgUrl === 'Nane.jpg') {
             cm.style.cssText = ''; 
         } else {
+            // Fondo Expandido, centrado y estático para evitar efecto mosaico
             cm.style.cssText = `background-image: url('${bgUrl}'); background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; background-attachment: fixed !important;`;
         }
     },
@@ -70,7 +71,7 @@ window.ui = {
         const tv = document.getElementById(viewId); if(tv) tv.classList.add('active');
         if(btnElement) btnElement.classList.add('active');
         if(viewId === 'viewLobby' && currentRoom !== 'Lobby') {
-            currentRoom = 'Lobby'; socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity });
+            currentRoom = 'Lobby'; socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
         }
     },
     scrollToMessage: (msgId) => {
@@ -83,19 +84,40 @@ window.ui = {
     }
 };
 
-// DELEGACIÓN GLOBAL INFALIBLE PARA PERFILES
+// DELEGACIÓN GLOBAL INFALIBLE PARA PERFILES Y TABS (Soluciona el bloqueo móvil)
 document.addEventListener('click', (e) => {
-    const target = e.target.closest('[data-profile]');
-    if (target) {
-        let username = target.getAttribute('data-profile');
+    // 1. Perfiles
+    const profileTarget = e.target.closest('[data-profile]');
+    if (profileTarget) {
+        let username = profileTarget.getAttribute('data-profile');
         if(username === 'me') username = currentUsername;
         if(username) {
             window.ui.openProfile(username);
-            const isNavBtn = target.closest('.nav-item');
+            const isNavBtn = profileTarget.closest('.nav-item');
             if(isNavBtn) {
                 document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
                 isNavBtn.classList.add('active');
             }
+        }
+    }
+    
+    // 2. Navegación Botones Inferiores
+    const navTarget = e.target.closest('.bottom-nav .nav-item[data-view]');
+    if (navTarget) {
+        window.ui.switchView(navTarget.dataset.view, navTarget);
+    }
+    
+    // 3. Pestañas (Tabs)
+    const tabTarget = e.target.closest('.picker-tab, .f-tab');
+    if (tabTarget) {
+        const container = tabTarget.closest('.friends-container') || tabTarget.closest('.unified-picker');
+        if(container) {
+            container.querySelectorAll('.f-tab, .picker-tab').forEach(t => t.classList.remove('active'));
+            container.querySelectorAll('.f-list, .picker-content').forEach(l => l.classList.remove('active'));
+            tabTarget.classList.add('active');
+            const tgtId = tabTarget.dataset.target;
+            const tgtEl = document.getElementById(tgtId);
+            if(tgtEl) tgtEl.classList.add('active');
         }
     }
 });
@@ -130,7 +152,7 @@ onAuthStateChanged(auth, async (user) => {
     userBubbleOpacity = prefs.bubbleOpacity || '0.9';
     userStatus = prefs.status || 'Conectado';
     userAvatar = prefs.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-    chatBg = localStorage.getItem('nani_bg') || prefs.bgLocal || ''; // Lee el fondo desde caché local
+    chatBg = localStorage.getItem('nani_bg') || ''; 
     useVibration = prefs.vibration !== false; 
     useNotifs = prefs.notifications !== false;
     useLightMode = prefs.lightMode === true;
@@ -157,12 +179,11 @@ function initApp() {
     sendUserData('Lobby'); 
     window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]'));
     renderFriendsUI();
-    renderMyRoomsUI();
 }
 
 const saveAppPrefs = async () => {
     try { 
-        localStorage.setItem('nani_bg', chatBg); // Almacenamiento instantáneo y HD
+        localStorage.setItem('nani_bg', chatBg); 
         await setDoc(doc(db, "usuarios", currentUserUid), { 
             bio: userBio,
             preferences: { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, avatar: userAvatar, bgLocal: chatBg, rooms: myRooms, mutedRooms: mutedRooms, stickers: myStickers, vibration: useVibration, notifications: useNotifs, lightMode: useLightMode } 
@@ -171,18 +192,8 @@ const saveAppPrefs = async () => {
 };
 
 // ==========================================
-// VISTAS Y BOTONES INFERIORES NATIVOS
+// VISTAS Y AJUSTES
 // ==========================================
-document.querySelectorAll('.bottom-nav .nav-item[data-view]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const targetBtn = e.target.closest('.nav-item');
-        if(targetBtn && targetBtn.dataset.view) {
-            window.ui.switchView(targetBtn.dataset.view, targetBtn);
-        }
-    });
-});
-
 safeAddListener('navSettingsBtn', 'click', () => {
     document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('navSettingsBtn').classList.add('active');
@@ -201,17 +212,17 @@ safeAddListener('closeConfigBtn', 'click', () => {
 safeAddListener('logoutBtnCtx', 'click', () => signOut(auth).then(() => window.location.href = 'index.html'));
 
 const sendUserData = (room = currentRoom) => {
-    socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity });
+    // AHORA ENVÍA LA BIOGRAFÍA AL SERVIDOR
+    socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
 };
 
 // ==========================================
-// SALAS, DMS Y MEMBRESÍA
+// SALAS Y DMs
 // ==========================================
 const checkRoomMembership = () => {
     if(currentRoom === 'Lobby') return;
     
-    // Es DM
-    if(currentRoom.includes('_')) {
+    if(currentRoom.includes('_')) { // DM
         document.getElementById('chatForm').style.display = 'flex';
         document.getElementById('joinRoomPrompt').style.display = 'none';
         document.getElementById('chatMenuDropdownContainer').style.display = 'none';
@@ -219,7 +230,6 @@ const checkRoomMembership = () => {
         return;
     }
     
-    // Es Sala Pública
     document.getElementById('chatMenuDropdownContainer').style.display = 'block';
     document.getElementById('toggleRoomUsersBtn').style.display = 'block';
 
@@ -236,7 +246,8 @@ window.openDMRoom = (friendName) => {
     const roomName = [currentUsername, friendName].sort().join('_');
     if(currentRoom === roomName) return;
     currentRoom = roomName; 
-    document.getElementById('roomTitle').innerHTML = `<i class="fas fa-lock" style="color:var(--accent); font-size:0.9rem;"></i> ${escapeHTML(friendName)}`;
+    const rt = document.getElementById('roomTitle');
+    if(rt) rt.innerHTML = `<i class="fas fa-lock" style="color:var(--accent); font-size:0.9rem;"></i> ${escapeHTML(friendName)}`;
     document.getElementById('chatMessages').innerHTML = ''; 
     checkRoomMembership();
     sendUserData(); 
@@ -290,7 +301,7 @@ safeAddListener('menuClearChatLocal', 'click', () => {
     showToast("Chat local vaciado");
 });
 
-// Fondo HD Local (Estilo WhatsApp)
+// Fondo Local (Estilo WhatsApp)
 let tempBgData = null;
 safeAddListener('menuChangeBg', 'click', () => {
     document.getElementById('chatMenuDropdown').classList.remove('show');
@@ -326,16 +337,10 @@ const renderMyRoomsUI = () => {
     const listDMs = document.getElementById('myDMsList');
     if(!listRooms || !listDMs) return;
     
-    // Auto-limpiar salas fantasma
-    const validRoomIds = currentRoomsData.map(r => r.id);
-    const originalLen = myRooms.length;
-    myRooms = myRooms.filter(id => validRoomIds.includes(id));
-    if(myRooms.length !== originalLen) saveAppPrefs();
-    
+    // Salas guardadas se quedan inmortales. Si el server reinicia, auto-reviven al entrar.
     listRooms.innerHTML = myRooms.map(rName => {
-        const rData = currentRoomsData.find(rm => rm.id === rName);
-        if(!rData) return ''; 
-        return `<li class="f-item purp-chat-item" style="cursor:pointer;" onclick="window.enterRoomDirect('${escapeHTML(rData.id)}')">
+        const rData = currentRoomsData.find(rm => rm.id === rName) || { name: rName, avatar: 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png', creator: 'Sistema', userCount: 0 };
+        return `<li class="f-item purp-chat-item" style="cursor:pointer;" onclick="window.enterRoomDirect('${escapeHTML(rData.name)}')">
             <div style="display:flex; align-items:center; gap:15px;">
                 <img src="${rData.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:55px; height:55px; border-radius:18px; object-fit:cover; border: 2px solid var(--border);">
                 <div style="display:flex; flex-direction:column;">
@@ -347,6 +352,7 @@ const renderMyRoomsUI = () => {
         </li>`;
     }).join('') || '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">No te has unido a ninguna sala aún.</p>';
 
+    // DMs
     listDMs.innerHTML = myFriends.map(friend => {
         const safeF = escapeHTML(friend);
         return `<li class="f-item purp-chat-item" style="cursor:pointer;" onclick="window.openDMRoom('${safeF}')">
@@ -363,7 +369,7 @@ const renderMyRoomsUI = () => {
 };
 
 // ==========================================
-// BÚSQUEDA Y CREACIÓN DE SALAS LOBBY
+// BÚSQUEDA Y CREACIÓN LOBBY
 // ==========================================
 safeAddListener('searchRoomInput', 'input', (e) => {
     const term = e.target.value.toLowerCase();
@@ -399,6 +405,7 @@ safeAddListener('createRoomBtn', 'click', () => {
     if(nr) { 
         socket.emit('createRoom', { roomName: nr, creator: currentUsername, uid: currentUserUid }); 
         el.value = ''; 
+        // Auto-unirse al crear
         if(!myRooms.includes(nr)) { myRooms.push(nr); saveAppPrefs(); }
         setTimeout(() => { window.enterRoomDirect(nr); }, 300); 
     }
@@ -420,8 +427,8 @@ socket.on('roomProfileData', (rd) => {
         if(rt && !currentRoom.includes('_')) rt.innerHTML = `<img src="${rd.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:30px; height:30px; border-radius:10px; object-fit:cover;"> ${escapeHTML(rd.name)}`;
         const rc = document.getElementById('roomCreator'); if(rc && !currentRoom.includes('_')) rc.textContent = `por ${escapeHTML(rd.creator)}`;
         
+        // Validación de Poder Total: Eres el creador o SuperAdmin
         const canEdit = (rd.uid === currentUserUid || rd.creator === currentUsername || isSuperAdmin);
-        const brs = document.getElementById('btnRoomSettings'); if(brs) brs.style.display = canEdit ? 'block' : 'none';
         
         document.getElementById('rProfileAvatar').src = rd.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png';
         document.getElementById('rProfileName').textContent = escapeHTML(rd.name);
@@ -451,6 +458,7 @@ safeAddListener('rEditAvatarInput', 'change', (e) => {
 safeAddListener('saveRoomProfileBtn', 'click', () => {
     const nName = escapeHTML(document.getElementById('rEditName').value);
     const nDesc = escapeHTML(document.getElementById('rEditDesc').value);
+    // SE ENVÍA UID PARA VALIDAR EN SERVIDOR
     socket.emit('updateRoomProfile', { roomName: currentRoom, newName: nName, description: nDesc, avatar: tempRoomAvatar, requesterUid: currentUserUid });
     
     if(nName && nName !== currentRoom) {
@@ -463,6 +471,7 @@ safeAddListener('saveRoomProfileBtn', 'click', () => {
 
 safeAddListener('deleteRoomBtnActual', 'click', () => {
     if(confirm(`¿Seguro que deseas ELIMINAR GLOBALMENTE la sala ${currentRoom}?`)) {
+        // ENVIAR DATA COMPLETA PARA VALIDAR
         socket.emit('deleteRoom', { roomName: currentRoom, requesterUid: currentUserUid, requesterEmail: currentUserEmail, requesterUser: currentUsername });
         document.getElementById('roomProfileModal').classList.remove('active');
     }
@@ -481,24 +490,21 @@ safeAddListener('muteRoomToggle', 'change', (e) => {
 });
 
 // ==========================================
-// TABS GENÉRICOS (ROBUSTOS)
+// AJUSTES APP E INTERRUPTORES
 // ==========================================
-document.querySelectorAll('.picker-tab, .f-tab').forEach(tab => {
-    tab.addEventListener('click', (e) => {
-        const realTab = e.target.closest('button');
-        if(!realTab) return;
-        const container = realTab.closest('.friends-container') || realTab.closest('.unified-picker');
-        if(container) {
-            container.querySelectorAll('.f-tab, .picker-tab').forEach(t => t.classList.remove('active'));
-            container.querySelectorAll('.f-list, .picker-content').forEach(l => l.classList.remove('active'));
-            realTab.classList.add('active');
-            document.getElementById(realTab.dataset.target).classList.add('active');
-        }
-    });
+safeAddListener('themeToggle', 'change', (e) => { 
+    useLightMode = e.target.checked; 
+    if(useLightMode) { document.documentElement.classList.add('light-theme'); localStorage.setItem('nani_theme', 'light'); } 
+    else { document.documentElement.classList.remove('light-theme'); localStorage.setItem('nani_theme', 'dark'); }
+    saveAppPrefs(); 
 });
+safeAddListener('vibToggle', 'change', (e) => { useVibration = e.target.checked; saveAppPrefs(); });
+safeAddListener('notifToggle', 'change', (e) => { useNotifs = e.target.checked; saveAppPrefs(); });
+
+safeAddListener('bubbleOpacity', 'input', (e) => { vibrate(15); });
 
 // ==========================================
-// PERFIL USUARIO (BIO Y PREFS)
+// PERFIL USUARIO Y BIOGRAFÍA
 // ==========================================
 safeAddListener('editProfileToggleBtn', 'click', () => {
     const editSec = document.getElementById('dProfileEditSection');
@@ -588,7 +594,7 @@ socket.on('newProfileComment', (data) => { if(viewingProfile === data.targetUser
 safeAddListener('closeDiscordProfileBtn', 'click', () => { document.getElementById('discordProfileModal').classList.remove('active'); });
 
 // ==========================================
-// LISTAS SOCIALES Y GLOBALES 
+// SOCIAL (AMIGOS / GLOBALES)
 // ==========================================
 const renderFriendsUI = () => {
     const gl = (c, arr, isR) => { 
@@ -599,6 +605,7 @@ const renderFriendsUI = () => {
         return `<li class="f-item" style="cursor:pointer;" data-profile="${safeU}"><span style="font-weight:bold; color:var(--text-main); flex:1;">${safeU}</span>${isR ? `<div><button class="btn-primary" onclick="event.stopPropagation(); window.acceptFriend('${safeU}')" style="padding:5px 10px; font-size:0.8rem; border-radius:8px;">Aceptar</button> <button class="btn-danger-outline" onclick="event.stopPropagation(); window.rejectFriend('${safeU}')" style="padding:5px 10px; font-size:0.8rem;">X</button></div>` : ''}</li>`
     }).join('') || '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center;">Lista vacía.</p>'; };
     gl('myFriendsList', myFriends, false); gl('pendingRequestsList', myRequests, true);
+    renderMyRoomsUI();
 };
 socket.on('friendRequestReceived', ({ from, to }) => { if(to === currentUsername && !myRequests.includes(from) && !myFriends.includes(from)) { myRequests.push(from); setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests }, { merge: true }); vibrate(200); renderFriendsUI(); }});
 window.acceptFriend = (rU) => { myFriends.push(rU); myRequests = myRequests.filter(r => r !== rU); setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests, friends: myFriends }, { merge: true }); socket.emit('acceptFriendRequest', { from: currentUsername, to: rU }); renderFriendsUI(); };
@@ -646,13 +653,14 @@ safeAddListener('doGifSearchBtn', 'click', async () => {
 });
 
 // ==========================================
-// ENVÍO DE MENSAJES Y NOTAS DE VOZ
+// ENVÍO DE MENSAJES Y NOTAS DE VOZ REPARADO (PointerEvents)
 // ==========================================
 const enviarMensaje = (texto, tipo = 'text') => {
     if (!texto) return;
     const safeText = tipo === 'text' ? escapeHTML(texto) : texto; 
     const idUnicoMsg = Date.now().toString() + Math.floor(Math.random()*1000); 
     
+    // REQUIRE UID MAESTRO
     socket.emit('chatMessage', { msgId: idUnicoMsg, uid: currentUserUid, username: currentUsername, text: safeText, type: tipo, room: currentRoom, color: userColor, avatar: userAvatar, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, reply: replyingTo, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
     const cbtn = document.getElementById('cancelReplyBtn'); if(cbtn) cbtn.click(); 
 };
@@ -663,14 +671,13 @@ safeAddListener('chatForm', 'submit', (e) => {
     if(mi) { enviarMensaje(mi.value.trim(), 'text'); mi.value = ''; }
 });
 
-// Grabación Estilo Messenger
+// Voz Estable con Pointer Events
 let isRecording = false;
 const recOverlay = document.getElementById('recordingOverlay');
 
 const startRecording = async (e) => {
-    if(e) e.preventDefault();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        return showToast("Tu navegador bloquea el micrófono. Intenta por HTTPS.", "error");
+        return showToast("Navegador inseguro. Necesita HTTPS para micrófono.", "error");
     }
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -693,8 +700,8 @@ const startRecording = async (e) => {
         });
     } catch(err) { showToast('Permiso de micrófono denegado.', 'error'); }
 };
+
 const stopRecording = (e) => {
-    if(e) e.preventDefault();
     if(mediaRecorder && mediaRecorder.state === 'recording') {
         if(recOverlay) recOverlay.classList.remove('active');
         mediaRecorder.stop();
@@ -703,10 +710,8 @@ const stopRecording = (e) => {
 
 const vBtn = document.getElementById('voiceBtn');
 if(vBtn) {
-    vBtn.addEventListener('mousedown', startRecording);
-    vBtn.addEventListener('touchstart', startRecording, {passive: false});
-    window.addEventListener('mouseup', stopRecording);
-    window.addEventListener('touchend', stopRecording);
+    vBtn.addEventListener('pointerdown', startRecording);
+    window.addEventListener('pointerup', stopRecording);
 }
 
 safeAddListener('fileInput', 'change', (e) => { 
@@ -744,6 +749,7 @@ const renderMessage = (msg) => {
 
     if (msg.type !== 'image') { div.style.background = hexToRgba(cBg, cOp); if (!isMe) div.style.border = `1px solid ${cBg}`; }
 
+    // SANITIZACIÓN FINAL Y COMPLETA
     const safeUsername = escapeHTML(msg.username);
     const safeAvatar = msg.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
@@ -752,7 +758,7 @@ const renderMessage = (msg) => {
         const safeReplyUser = escapeHTML(msg.reply.username);
         const safeReplyText = escapeHTML(msg.reply.text);
         const isReplyMedia = msg.reply.text.startsWith('data:') || msg.reply.text.startsWith('http');
-        // WHATSAPP STYLE SCROLL TO REPLY (Animado)
+        // SCROLL ANIMADO WHATSAPP
         rHtml = `<div class="quoted-message" onclick="window.ui.scrollToMessage('${msg.reply.msgId}')" style="border-left-color: ${isMe ? '#fff' : cNameColor}; cursor:pointer;"><strong style="color: ${isMe ? '#fff' : cNameColor};">${safeReplyUser}</strong><p>${isReplyMedia ? '📷 Media' : safeReplyText}</p></div>`;
     }
 
@@ -769,9 +775,12 @@ const renderMessage = (msg) => {
 
     div.innerHTML = `<div class="msg-header" data-profile="${safeUsername}" style="cursor:pointer;"><img src="${safeAvatar}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'" class="msg-avatar"><span style="color: ${cNameColor}; font-weight: 800;">${safeUsername}</span></div>${rHtml} ${content} <div class="msg-footer"><span class="time">${msg.time}</span></div>`;
     
-    div.addEventListener('contextmenu', (e) => showContextMenu(e, msg));
-    div.addEventListener('touchstart', (e) => { pressTimer = window.setTimeout(() => showContextMenu(e, msg), 600); });
-    div.addEventListener('touchend', () => clearTimeout(pressTimer)); div.addEventListener('touchmove', () => clearTimeout(pressTimer));
+    // Menú Contextual Multiplataforma Segura
+    div.addEventListener('contextmenu', (e) => { e.preventDefault(); showContextMenu(e, msg); });
+    div.addEventListener('pointerdown', (e) => { pressTimer = window.setTimeout(() => showContextMenu(e, msg), 600); });
+    div.addEventListener('pointerup', () => clearTimeout(pressTimer)); 
+    div.addEventListener('pointercancel', () => clearTimeout(pressTimer));
+    div.addEventListener('pointermove', () => clearTimeout(pressTimer));
 
     const cm = document.getElementById('chatMessages'); 
     if(cm) { cm.appendChild(div); cm.scrollTop = cm.scrollHeight; }
@@ -790,12 +799,13 @@ safeAddListener('cancelReplyBtn', 'click', () => { replyingTo = null; document.g
 // COMPARTIR Y MENÚ CONTEXTUAL MENSAJES
 const ctxMenu = document.getElementById('contextMenu'); let pressTimer;
 const showContextMenu = (e, msgData) => {
-    e.preventDefault(); selectedMsgContext = msgData;
+    selectedMsgContext = msgData;
     let x = e.pageX || (e.touches && e.touches[0].pageX); let y = e.pageY || (e.touches && e.touches[0].pageY);
     if(x + 160 > window.innerWidth) x -= 160; if(y + 150 > window.innerHeight) y -= 150;
     ctxMenu.style.left = `${x}px`; ctxMenu.style.top = `${y}px`; ctxMenu.classList.add('active');
     document.getElementById('ctxSaveSticker').style.display = msgData.type === 'image' ? 'flex' : 'none';
     
+    // VALIDACIÓN UID EN FRONTEND ANTES DE MOSTRAR EL BOTÓN
     document.getElementById('ctxDelete').style.display = (msgData.uid === currentUserUid || isSuperAdmin) ? 'flex' : 'none';
     vibrate(50);
 };
@@ -803,7 +813,7 @@ document.addEventListener('click', (e) => { if(!e.target.closest('.context-menu'
 
 safeAddListener('ctxProfile', 'click', () => { window.ui.openProfile(selectedMsgContext.username); ctxMenu.classList.remove('active'); });
 safeAddListener('ctxReply', 'click', () => {
-    replyingTo = { username: selectedMsgContext.username, text: selectedMsgContext.text, msgId: selectedMsgContext.msgId }; // msgId añadido
+    replyingTo = { username: selectedMsgContext.username, text: selectedMsgContext.text, msgId: selectedMsgContext.msgId }; 
     document.getElementById('replyName').textContent = escapeHTML(selectedMsgContext.username);
     document.getElementById('replyText').textContent = selectedMsgContext.type === 'image' ? '📷 Imagen' : (selectedMsgContext.type === 'audio' ? '🎤 Audio' : escapeHTML(selectedMsgContext.text));
     document.getElementById('replyPreview').classList.add('active'); 
@@ -831,6 +841,7 @@ safeAddListener('ctxSaveSticker', 'click', () => {
     ctxMenu.classList.remove('active');
 });
 safeAddListener('ctxDelete', 'click', () => { 
+    // SE ENVÍA EL UID MAESTRO AL SERVIDOR PARA QUE VALIDE LA ACCIÓN REAL
     socket.emit('deleteMessage', { room: currentRoom, msgId: selectedMsgContext.msgId, requesterUid: currentUserUid, requesterEmail: currentUserEmail }); 
     ctxMenu.classList.remove('active'); 
 });

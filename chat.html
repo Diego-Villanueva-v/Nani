@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        // MODO CLARO INSTANTÁNEO
         if(localStorage.getItem('nani_theme') === 'light') {
             document.documentElement.classList.add('light-theme');
         }
@@ -232,7 +231,7 @@
                 </div>
             </div>
 
-            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar Sala</button>
+            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar esta Sala</button>
 
             <div id="rProfileEditSection" style="display: none; border-top: 1px solid var(--border); padding-top: 15px;">
                 <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Ajustes de Creador</h4>
@@ -249,6 +248,7 @@
                     <label for="rEditAvatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Foto</label>
                 </div>
                 <button id="saveRoomProfileBtn" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
+                
                 <button id="deleteRoomBtnActual" class="btn-danger" style="width: 100%; margin-top: 15px;"><i class="fas fa-trash"></i> Eliminar Sala Global</button>
             </div>
         </div>
@@ -312,7 +312,7 @@
         <div class="discord-body">
             <div id="dProfileActions" style="display:flex; gap:10px; margin-bottom:15px;">
                 <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje Directo</button>
-                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
+                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir Amigo</button>
             </div>
             <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro del Usuario</h4>
             <div class="discord-comments" id="dProfileComments"></div>
