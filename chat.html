@@ -6,6 +6,11 @@
     <title>Nani? - App</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        if(localStorage.getItem('nani_theme') === 'light') {
+            document.documentElement.classList.add('light-theme');
+        }
+    </script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
@@ -39,55 +44,74 @@
     <main class="main-views-container">
         
         <div id="viewLobby" class="app-view active">
-            <div class="lobby-content">
-                <div class="lobby-icon-container">
-                    <i class="fas fa-meteor lobby-icon"></i>
-                </div>
-                <h2 style="font-size: 2rem; margin-bottom: 10px;">Comunidad Nani</h2>
-                <p style="color: var(--text-muted); margin-bottom: 30px;">Explora las salas públicas o crea una nueva.</p>
+            <div class="lobby-center-box">
+                <div class="lobby-icon-container"><i class="fas fa-meteor lobby-icon"></i></div>
+                <h2 style="font-size: 2.2rem; margin-bottom: 10px; text-align: center;">Comunidad Nani</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px; text-align: center;">Explora el universo de salas o crea la tuya.</p>
                 
-                <div class="room-selector-box">
-                    <h4 style="color:var(--text-muted); margin-bottom:10px; font-size:0.8rem; text-transform:uppercase;">Salas Disponibles</h4>
-                    <div class="custom-dropdown" id="roomDropdown">
-                        <div class="dropdown-header" id="dropdownHeader">
-                            <span id="selectedRoomText">General</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </div>
-                        <ul class="dropdown-list" id="dropdownList"></ul>
-                    </div>
-                    <button id="joinRoomBtn" class="btn-primary" style="width: 100%; margin-bottom:15px;">Entrar a la sala</button>
-                    
-                    <div class="create-room">
-                        <input type="text" id="newRoomInput" placeholder="Crear nueva sala...">
-                        <button id="createRoomBtn" class="btn-icon-small"><i class="fas fa-plus"></i></button>
-                    </div>
+                <div class="create-room">
+                    <input type="text" id="newRoomInput" placeholder="Nombra tu nueva sala..." autocomplete="off">
+                    <button id="createRoomBtn" class="btn-primary" style="width: auto; padding: 0 20px;"><i class="fas fa-plus"></i> Crear</button>
                 </div>
+
+                <div class="search-box-modern" style="margin-top: 30px;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchRoomInput" placeholder="Buscar salas disponibles..." autocomplete="off">
+                </div>
+                
+                <ul class="room-grid" id="dropdownList"></ul>
+            </div>
+        </div>
+
+        <div id="viewChats" class="app-view">
+            <div class="friends-container">
+                <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Mis Chats</h2>
+                <ul id="myJoinedRoomsList" class="f-list active"></ul>
+            </div>
+        </div>
+
+        <div id="viewSocial" class="app-view">
+            <div class="friends-container">
+                <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Social</h2>
+                <div class="friends-tabs">
+                    <button class="f-tab active" data-target="myFriendsList">Mis Amigos</button>
+                    <button class="f-tab" data-target="pendingRequestsList">Solicitudes</button>
+                    <button class="f-tab" data-target="globalLobbyUsersList">En línea</button>
+                </div>
+                <ul id="myFriendsList" class="f-list active"></ul>
+                <ul id="pendingRequestsList" class="f-list"></ul>
+                <ul id="globalLobbyUsersList" class="f-list"></ul>
             </div>
         </div>
 
         <div id="viewChat" class="app-view">
             <header class="chat-header">
-                <div class="header-info">
-                    <h2 id="roomTitle">Cargando...</h2>
+                <div class="header-info" id="openRoomProfileBtn" style="cursor: pointer; padding: 5px; border-radius: 8px; transition: 0.2s;">
+                    <h2 id="roomTitle" style="display: flex; align-items: center; gap: 10px;">Cargando...</h2>
                     <small id="roomCreator" style="color: var(--text-muted); font-size: 0.8rem;"></small>
                 </div>
-                <div style="display: flex; gap: 10px; align-items:center;">
-                    <div class="search-history hide-mobile">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="Buscar mensaje...">
-                    </div>
+                <div style="display: flex; gap: 5px; align-items:center;">
                     <button id="toggleRoomUsersBtn" class="btn-icon-small" title="Usuarios en sala"><i class="fas fa-users"></i></button>
-                    <button id="deleteRoomBtn" class="btn-danger-outline" style="display:none; padding: 8px 12px; border-radius: 12px;" title="Borrar Sala"><i class="fas fa-trash"></i></button>
-                    <button id="leaveRoomBtn" class="btn-icon-small" title="Abandonar Sala"><i class="fas fa-sign-out-alt"></i></button>
+                    
+                    <div class="custom-dropdown" style="margin-bottom:0;">
+                        <button class="btn-icon-small" id="btnChatMenuToggle"><i class="fas fa-ellipsis-v"></i></button>
+                        <ul class="dropdown-list" id="chatMenuDropdown" style="position: absolute; right: 0; left: auto; top: 100%; width: 200px; z-index: 100;">
+                            <li id="menuRoomInfo"><i class="fas fa-info-circle" style="color:var(--accent); margin-right:8px;"></i> Info de la Sala</li>
+                            <li id="menuChangeBg"><i class="fas fa-image" style="color:var(--accent); margin-right:8px;"></i> Cambiar Fondo</li>
+                            <li id="menuResetBg"><i class="fas fa-eraser" style="margin-right:8px;"></i> Quitar Fondo</li>
+                            <hr style="border-color: var(--border); margin: 5px 0;">
+                            <li id="menuClearChatLocal" class="danger-text"><i class="fas fa-broom" style="margin-right:8px;"></i> Vaciar Chat</li>
+                        </ul>
+                    </div>
                 </div>
             </header>
 
-            <div class="chat-body-container" style="display: flex; flex: 1; overflow: hidden; position: relative; height: 100%;">
-                <div class="chat-messages" id="chatMessages" style="flex: 1;"></div>
+            <div class="chat-body-container" style="display: flex; flex: 1; overflow: hidden; position: relative; width: 100%;">
+                <div class="chat-messages" id="chatMessages"></div>
                 
-                <div id="roomUsersPanel" class="room-users-panel">
+                <div id="roomUsersPanel" class="lobby-panel lobby-panel-right">
                     <div class="panel-header">
-                        <h4>Usuarios aquí</h4>
+                        <h4>Miembros de Sala</h4>
                         <button id="closeRoomUsersBtn" class="btn-icon-small" style="padding: 5px 10px;"><i class="fas fa-times"></i></button>
                     </div>
                     <ul id="roomUsersList" class="f-list active" style="padding: 10px; overflow-y: auto;"></ul>
@@ -102,57 +126,59 @@
                 <button id="cancelReplyBtn" class="btn-icon" style="padding:0; width:auto; height:auto;"><i class="fas fa-times"></i></button>
             </div>
 
+            <div id="joinRoomPrompt" class="join-room-overlay">
+                <p style="margin-bottom: 15px; color: var(--text-main); font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Estás en modo espectador.</p>
+                <button id="btnJoinCurrentRoom" class="btn-primary" style="max-width: 300px; padding: 16px; font-size: 1.1rem; box-shadow: 0 10px 20px rgba(217, 70, 239, 0.4);">Unirse a la sala</button>
+            </div>
+
             <div id="unifiedPicker" class="unified-picker">
-                <div class="picker-tabs">
-                    <button class="picker-tab active" data-target="emojiSection">😀 <span class="hide-mobile">Emojis</span></button>
-                    <button class="picker-tab" data-target="gifSection">🎞️ <span class="hide-mobile">GIFs</span></button>
-                    <button class="picker-tab" data-target="stickerSection">⭐️ <span class="hide-mobile">Stickers</span></button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div class="picker-tabs" style="margin: 0; padding: 0; border: none;">
+                        <button class="picker-tab active" data-target="emojiSection">😀</button>
+                        <button class="picker-tab" data-target="gifSection">🎞️ GIFs</button>
+                        <button class="picker-tab" data-target="stickerSection">⭐️ Stickers</button>
+                    </div>
+                    <button id="closeUnifiedPickerBtn" class="btn-icon-small" style="padding: 4px 8px;"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="picker-content active" id="emojiSection"><div id="emojiPickerContent" class="emoji-grid"></div></div>
                 <div class="picker-content" id="gifSection">
-                    <div style="display: flex; gap: 5px; width: 100%; margin-bottom: 10px;">
-                        <input type="text" id="gifSearch" placeholder="Buscar GIF...">
-                        <button type="button" id="doGifSearchBtn" class="btn-primary" style="padding: 0 15px; width: auto;"><i class="fas fa-search"></i></button>
+                    <div class="search-box-modern" style="margin-bottom: 10px;">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="gifSearch" placeholder="Buscar GIF..." autocomplete="off">
+                        <button type="button" id="doGifSearchBtn" style="background:none; border:none; color:var(--accent); cursor:pointer;"><i class="fas fa-arrow-right"></i></button>
                     </div>
                     <div id="gifResults" class="media-grid"></div>
                 </div>
                 <div class="picker-content" id="stickerSection"><div id="stickerResults" class="media-grid"></div></div>
             </div>
 
+            <div id="recordingOverlay" class="recording-overlay">
+                <div class="recording-pulse"></div>
+                <span class="recording-text"><i class="fas fa-microphone"></i> Grabando... Suelta para enviar.</span>
+            </div>
+
             <form id="chatForm" class="chat-form">
                 <button type="button" id="toggleUnifiedPickerBtn" class="btn-icon"><i class="fas fa-smile"></i></button>
-                <input type="file" id="fileInput" style="display: none;" accept="image/*">
-                <label for="fileInput" class="btn-icon" style="cursor:pointer;"><i class="fas fa-image"></i></label>
+                <input type="file" id="fileInput" style="display: none;" accept="image/*, .pdf, .zip, .rar, .txt, .doc, .docx">
+                <label for="fileInput" class="btn-icon" style="cursor:pointer;"><i class="fas fa-paperclip"></i></label>
                 
                 <div class="input-chat-wrapper">
                     <input type="text" id="messageInput" placeholder="Escribe un mensaje..." autocomplete="off">
                 </div>
                 
-                <button type="button" id="voiceBtn" class="btn-icon voice-btn"><i class="fas fa-microphone"></i></button>
-                <button type="submit" class="btn-send"><i class="fas fa-paper-plane"></i></button>
+                <button type="button" id="shareBtnChat" class="btn-icon"><i class="fas fa-share-alt"></i></button>
+                <button type="button" id="voiceBtn" class="btn-icon voice-btn disable-select" title="Mantén presionado para hablar"><i class="fas fa-microphone"></i></button>
+                <button type="submit" id="sendTextBtn" class="btn-send"><i class="fas fa-paper-plane"></i></button>
             </form>
-        </div>
-
-        <div id="viewFriends" class="app-view">
-            <div class="friends-container">
-                <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Social</h2>
-                <div class="friends-tabs">
-                    <button class="f-tab active" data-target="globalUsersList">Global</button>
-                    <button class="f-tab" data-target="myFriendsList">Mis Amigos</button>
-                    <button class="f-tab" data-target="pendingRequestsList">Solicitudes</button>
-                </div>
-                <ul id="globalUsersList" class="f-list active"></ul>
-                <ul id="myFriendsList" class="f-list"></ul>
-                <ul id="pendingRequestsList" class="f-list"></ul>
-            </div>
         </div>
 
     </main>
 
     <nav class="bottom-nav">
         <button class="nav-item active" data-view="viewLobby"><i class="fas fa-compass"></i><span>Inicio</span></button>
-        <button class="nav-item" data-view="viewFriends"><i class="fas fa-users"></i><span>Social</span></button>
-        <button class="nav-item" id="navMyProfileBtn"><i class="fas fa-user-circle"></i><span>Perfil</span></button>
+        <button class="nav-item" data-view="viewChats"><i class="fas fa-comment-dots"></i><span>Chats</span></button>
+        <button class="nav-item" data-view="viewSocial"><i class="fas fa-user-friends"></i><span>En línea</span></button>
+        <button class="nav-item" id="navMyProfileBtn" data-profile="me"><i class="fas fa-user-circle"></i><span>Perfil</span></button>
         <button class="nav-item" id="navSettingsBtn"><i class="fas fa-cog"></i><span>Ajustes</span></button>
     </nav>
 </div>
@@ -168,6 +194,57 @@
     <img id="lightboxImg" src="">
 </div>
 
+<div id="bgPreviewModal" class="modal" style="z-index: 10001;">
+    <div class="modal-content" style="text-align: center;">
+        <h3 style="color: var(--text-main); margin-bottom: 15px;">Vista Previa del Fondo</h3>
+        <div id="bgPreviewContainer" style="width: 100%; height: 250px; border-radius: 12px; background-size: cover; background-position: center; margin-bottom: 20px; border: 1px solid var(--border);"></div>
+        <div style="display: flex; gap: 10px;">
+            <button id="cancelBgBtn" class="btn-primary-outline" style="flex: 1;">Cancelar</button>
+            <button id="applyBgBtn" class="btn-primary" style="flex: 1;">Aplicar Fondo</button>
+        </div>
+    </div>
+</div>
+<input type="file" id="bgLocalInputChat" accept="image/*" style="display: none;">
+
+<div id="roomProfileModal" class="modal">
+    <div class="discord-profile-content config-scrollable">
+        <div class="discord-banner" style="background: var(--accent);"></div>
+        <div class="discord-header">
+            <img id="rProfileAvatar" src="https://cdn-icons-png.flaticon.com/512/1370/1370907.png">
+            <h3 id="rProfileName" style="margin-top: 15px;">Nombre Sala</h3>
+            <span class="profile-details-badge" id="rProfileCreator">Creador</span>
+        </div>
+        <div class="discord-body">
+            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Descripción</h4>
+            <p id="rProfileDesc" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; line-height: 1.5;"></p>
+            
+            <div class="settings-section" style="margin-bottom: 15px;">
+                <div class="toggle-row">
+                    <span><i class="fas fa-bell-slash"></i> Silenciar Sala</span>
+                    <input type="checkbox" id="muteRoomToggle" class="toggle-switch">
+                </div>
+            </div>
+
+            <button id="leaveRoomBtnActual" class="btn-danger-outline" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-sign-out-alt"></i> Abandonar esta Sala</button>
+
+            <div id="rProfileEditSection" style="display: none; border-top: 1px solid var(--border); padding-top: 15px;">
+                <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Ajustes de Creador</h4>
+                <div class="form-group">
+                    <label>Descripción de la sala</label>
+                    <input type="text" id="rEditDesc" class="input-chat-wrapper" style="width: 100%; padding: 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border);" placeholder="De qué trata la sala..." autocomplete="off">
+                </div>
+                <div class="form-group" style="text-align: center;">
+                    <input type="file" id="rEditAvatarInput" accept="image/*" style="display: none;">
+                    <label for="rEditAvatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Foto de la Sala</label>
+                </div>
+                <button id="saveRoomProfileBtn" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
+                <button id="deleteRoomBtnActual" class="btn-danger-custom" style="width: 100%; margin-top: 15px;"><i class="fas fa-trash"></i> Destruir Sala (Global)</button>
+            </div>
+        </div>
+        <button class="discord-close-btn" id="closeRoomProfileBtn"><i class="fas fa-times"></i></button>
+    </div>
+</div>
+
 <div id="discordProfileModal" class="modal">
     <div class="discord-profile-content config-scrollable">
         <div class="discord-banner" id="dProfileBanner"></div>
@@ -175,8 +252,8 @@
             <img id="dProfileAvatar" src="">
             <div style="display:flex; justify-content:space-between; align-items:flex-end;">
                 <div>
-                    <h3 id="dProfileName">Usuario <i id="adminBadge" class="fas fa-check-circle" style="color:#38bdf8; font-size:1rem; display:none;" title="Super Admin"></i></h3>
-                    <span id="dProfileDetails" class="profile-details-badge"></span>
+                    <h3 id="dProfileName">Usuario</h3>
+                    <span id="dProfileUid" style="color: var(--accent); font-size: 0.75rem; font-family: monospace; letter-spacing: 1px;"></span>
                 </div>
                 <button id="editProfileToggleBtn" class="btn-primary-outline" style="width: auto; padding: 6px 12px; font-size: 0.8rem; display: none;"><i class="fas fa-pen"></i> Editar</button>
             </div>
@@ -186,7 +263,7 @@
         </div>
 
         <div id="dProfileEditSection" class="discord-body" style="display: none; border-bottom: 1px solid var(--border); padding-top: 15px;">
-            <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 15px;">Personalizar Perfil</h4>
+            <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 15px;">Personalizar Mi Perfil</h4>
             
             <div class="form-group" style="text-align: center; margin-bottom: 15px;">
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
@@ -217,13 +294,13 @@
 
         <div class="discord-body">
             <div id="dProfileActions" style="display:flex; gap:10px; margin-bottom:15px;">
-                <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> DM</button>
-                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
+                <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Escribir Mensaje</button>
+                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir Amigo</button>
             </div>
-            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro</h4>
+            <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro del Usuario</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
-                <input type="text" id="dCommentText" placeholder="Escribe algo...">
+                <input type="text" id="dCommentText" placeholder="Escribe en su muro..." autocomplete="off">
                 <button id="dCommentBtn" class="btn-primary" style="width: 45px; padding: 0;"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
@@ -233,7 +310,7 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-content config-scrollable">
-        <h3 style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">Ajustes de la App</h3>
+        <h3 style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">Ajustes</h3>
         
         <div class="settings-section">
             <h4 style="color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase;">Preferencias</h4>
@@ -245,25 +322,20 @@
                 <span><i class="fas fa-mobile-alt"></i> Vibración</span>
                 <input type="checkbox" id="vibToggle" class="toggle-switch" checked>
             </div>
-            <div class="toggle-row">
-                <span><i class="fas fa-sun"></i> Modo Claro</span>
-                <input type="checkbox" id="themeToggle" class="toggle-switch">
-            </div>
             
-            <div class="form-group" style="margin-top: 20px;">
-                <label style="font-size: 0.8rem; color: var(--text-muted);"><i class="fas fa-image"></i> Fondo Global de Chat</label>
-                <input type="file" id="bgLocalInput" accept="image/*" style="display: none;">
-                <div style="display: flex; gap: 5px; margin-top: 5px;">
-                    <label for="bgLocalInput" class="custom-file-upload" style="flex:1; margin:0; padding: 10px;"><i class="fas fa-upload"></i> Subir</label>
-                    <button type="button" id="resetBgBtn" class="btn-danger-outline" style="flex:1; border-radius:12px;"><i class="fas fa-undo"></i> Reset</button>
-                </div>
+            <div class="toggle-row">
+                <span><i class="fas fa-paint-brush"></i> Apariencia</span>
+                <label class="theme-switch">
+                    <input type="checkbox" id="themeToggle">
+                    <span class="theme-slider">
+                        <i class="fas fa-moon" style="margin-left: 5px;"></i>
+                        <i class="fas fa-sun" style="margin-right: 5px;"></i>
+                    </span>
+                </label>
             </div>
         </div>
 
         <div class="settings-list">
-            <a href="mailto:unknownlineof@gmail.com" class="settings-list-btn" style="text-decoration: none;">
-                <i class="fas fa-envelope"></i> Contactar Soporte
-            </a>
             <button class="settings-list-btn text-danger" id="logoutBtnCtx">
                 <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
             </button>

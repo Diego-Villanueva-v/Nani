@@ -52,7 +52,13 @@ document.getElementById('googleLogin').addEventListener('click', async () => {
         const docSnap = await getDoc(userDocRef);
 
         if (!docSnap.exists()) {
-            await setDoc(userDocRef, { username: user.displayName || user.email.split('@')[0], avatar: user.photoURL, preferences: { color: "#d946ef" } }, { merge: true });
+            await setDoc(userDocRef, { 
+                username: user.displayName || user.email.split('@')[0], 
+                email: user.email,
+                avatar: user.photoURL, 
+                fechaRegistro: new Date(),
+                preferences: { color: "#d946ef" } 
+            }, { merge: true });
         }
         window.location.href = 'chat.html';
     } catch (error) { showToast('Error al conectar con Google.'); }
