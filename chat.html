@@ -66,7 +66,12 @@
         <div id="viewChats" class="app-view">
             <div class="friends-container">
                 <h2 style="margin-bottom: 20px; color: var(--text-main); text-align: center;">Mis Chats</h2>
+                <div class="friends-tabs">
+                    <button class="f-tab active" data-target="myJoinedRoomsList">Mis Salas</button>
+                    <button class="f-tab" data-target="myDMsList">Mensajes Privados</button>
+                </div>
                 <ul id="myJoinedRoomsList" class="f-list active" style="gap: 15px;"></ul>
+                <ul id="myDMsList" class="f-list" style="gap: 15px;"></ul>
             </div>
         </div>
 
@@ -90,10 +95,11 @@
                     <h2 id="roomTitle" style="display: flex; align-items: center; gap: 10px;">Cargando...</h2>
                     <small id="roomCreator" style="color: var(--text-muted); font-size: 0.8rem;"></small>
                 </div>
+                
                 <div style="display: flex; gap: 5px; align-items:center;">
                     <button id="toggleRoomUsersBtn" class="btn-icon-small" title="Usuarios en sala"><i class="fas fa-users"></i></button>
                     
-                    <div class="custom-dropdown" style="margin-bottom:0;">
+                    <div class="custom-dropdown" style="margin-bottom:0;" id="chatMenuDropdownContainer">
                         <button class="btn-icon-small" id="btnChatMenuToggle"><i class="fas fa-ellipsis-v"></i></button>
                         <ul class="dropdown-list" id="chatMenuDropdown" style="position: absolute; right: 0; left: auto; top: 100%; width: 200px; z-index: 100;">
                             <li id="menuRoomInfo"><i class="fas fa-info-circle" style="color:var(--accent); margin-right:8px;"></i> Info de la Sala</li>
@@ -185,7 +191,7 @@
 <div id="contextMenu" class="context-menu">
     <button id="ctxProfile"><i class="fas fa-user"></i> Ver Perfil</button>
     <button id="ctxReply"><i class="fas fa-reply"></i> Responder</button>
-    <button id="ctxShare"><i class="fas fa-share-alt"></i> Compartir</button>
+    <button id="ctxShare"><i class="fas fa-share-alt"></i> Compartir Mensaje</button>
     <button id="ctxSaveSticker"><i class="fas fa-star"></i> Guardar Sticker</button>
     <button id="ctxDelete" class="danger-text"><i class="fas fa-trash"></i> Eliminar</button>
 </div>
@@ -229,22 +235,20 @@
 
             <div id="rProfileEditSection" style="display: none; border-top: 1px solid var(--border); padding-top: 15px;">
                 <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Ajustes de Creador</h4>
-                
                 <div class="form-group">
                     <label>Renombrar Sala</label>
                     <input type="text" id="rEditName" class="input-chat-wrapper" style="width: 100%; padding: 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border);" autocomplete="off">
                 </div>
-                
                 <div class="form-group">
-                    <label>Descripción</label>
-                    <input type="text" id="rEditDesc" class="input-chat-wrapper" style="width: 100%; padding: 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border);" placeholder="De qué trata..." autocomplete="off">
+                    <label>Descripción de la sala</label>
+                    <input type="text" id="rEditDesc" class="input-chat-wrapper" style="width: 100%; padding: 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border);" placeholder="De qué trata la sala..." autocomplete="off">
                 </div>
                 <div class="form-group" style="text-align: center;">
                     <input type="file" id="rEditAvatarInput" accept="image/*" style="display: none;">
-                    <label for="rEditAvatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Foto</label>
+                    <label for="rEditAvatarInput" class="custom-file-upload"><i class="fas fa-camera"></i> Cambiar Foto de la Sala</label>
                 </div>
                 <button id="saveRoomProfileBtn" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
-                <button id="deleteRoomBtnActual" class="btn-danger" style="width: 100%; margin-top: 15px;"><i class="fas fa-trash"></i> Destruir Sala Global</button>
+                <button id="deleteRoomBtnActual" class="btn-danger-custom" style="width: 100%; margin-top: 15px;"><i class="fas fa-trash"></i> Destruir Sala (Global)</button>
             </div>
         </div>
         <button class="discord-close-btn" id="closeRoomProfileBtn"><i class="fas fa-times"></i></button>
@@ -276,12 +280,12 @@
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
                 <label for="avatarInput" class="custom-file-upload" style="width:auto; display:inline-block;"><i class="fas fa-camera"></i> Cambiar Avatar</label>
             </div>
-            
+
             <div class="form-group">
                 <label>Biografía</label>
                 <input type="text" id="bioInput" class="input-chat-wrapper" style="width: 100%; padding: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 12px; outline: none;" placeholder="Un poco sobre ti..." autocomplete="off">
             </div>
-
+            
             <div class="form-group">
                 <label>Estado</label>
                 <select id="statusSelect" class="input-chat-wrapper" style="width: 100%; padding: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 12px; outline: none;">
@@ -306,8 +310,8 @@
 
         <div class="discord-body">
             <div id="dProfileActions" style="display:flex; gap:10px; margin-bottom:15px;">
-                <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje</button>
-                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir</button>
+                <button id="dProfileDMBtn" class="btn-primary" style="flex:1;"><i class="fas fa-paper-plane"></i> Mensaje Directo</button>
+                <button id="dProfileAddFriendBtn" class="btn-primary-outline" style="flex:1;"><i class="fas fa-user-plus"></i> Añadir Amigo</button>
             </div>
             <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro del Usuario</h4>
             <div class="discord-comments" id="dProfileComments"></div>

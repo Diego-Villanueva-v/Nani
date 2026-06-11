@@ -33,11 +33,10 @@ setInterval(() => {
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
     for (let room in roomHistory) {
-        if (!room.includes('_')) { // Solo salas publicas, ignora DMs
+        if (!room.includes('_')) { 
             const originalLen = roomHistory[room].length;
             roomHistory[room] = roomHistory[room].filter(m => (now - parseInt(m.msgId)) < twentyFourHours);
             if(originalLen !== roomHistory[room].length) {
-                // Actualiza historia localmente (optimizado)
                 io.to(room).emit('loadHistory', roomHistory[room].slice(-50));
             }
         }
@@ -56,7 +55,7 @@ io.on('connection', (socket) => {
         
         if (userData.room !== 'Lobby') {
             if (!roomHistory[userData.room]) roomHistory[userData.room] = [];
-            // Optimización de RAM y lentitud: solo carga los últimos 50.
+            // Optimización de RAM: Carga solo 50 iniciales
             socket.emit('loadHistory', roomHistory[userData.room].slice(-50));
         }
 
@@ -75,7 +74,7 @@ io.on('connection', (socket) => {
 
     socket.on('deleteMessage', ({ room, msgId, requesterUid, requesterEmail }) => {
         const msg = roomHistory[room]?.find(m => m.msgId === msgId);
-        // UID VALIDACIÓN O DIOS
+        // VALIDACIÓN ESTRICTA (PRIMARY KEY O ADMIN)
         if (requesterEmail === SUPER_ADMIN_EMAIL || (msg && msg.uid === requesterUid)) {
             if (roomHistory[room]) {
                 roomHistory[room] = roomHistory[room].filter(m => m.msgId !== msgId);
@@ -96,7 +95,7 @@ io.on('connection', (socket) => {
             color: user.color || '#d946ef', 
             age: user.age || '', 
             gender: user.gender || '', 
-            bio: user.bio || '', // Bio cargada
+            bio: user.bio || '', 
             isAdmin: user.isAdmin || false, 
             comments 
         });
@@ -110,11 +109,11 @@ io.on('connection', (socket) => {
     socket.on('updateRoomProfile', ({ roomName, newName, description, avatar, requesterUid }) => {
         const roomIndex = activeRooms.findIndex(r => r.id === roomName);
         if (roomIndex !== -1) {
+            // El UID funciona como Primary Key para validar permisos
             if (activeRooms[roomIndex].uid === requesterUid || isSuperAdmin) {
                 if(newName && newName !== roomName) {
                     activeRooms[roomIndex].id = newName;
                     activeRooms[roomIndex].name = newName;
-                    // Mover historial si se renombra
                     if(roomHistory[roomName]) {
                         roomHistory[newName] = roomHistory[roomName];
                         delete roomHistory[roomName];
@@ -155,7 +154,7 @@ io.on('connection', (socket) => {
     socket.on('deleteRoom', ({ roomName, requesterUid, requesterUser, requesterEmail }) => {
         const room = activeRooms.find(r => r.id === roomName);
         if (room && !['General', 'Programacion', 'Juegos'].includes(room.id)) {
-            // VERIFICACIÓN CON EL UID PARA BORRAR SALAS
+            // DOBLE VALIDACION: UID y Creador
             if (room.uid === requesterUid || room.creator === requesterUser || requesterEmail === SUPER_ADMIN_EMAIL) {
                 activeRooms = activeRooms.filter(r => r.id !== roomName);
                 delete roomHistory[roomName];
