@@ -10,10 +10,12 @@
     --other-msg: rgba(39, 39, 42, 0.9); --input-bg: rgba(0,0,0,0.5); --hover-bg: rgba(255,255,255,0.05);
 }
 
+/* FIX DEFINITIVO MODO CLARO EN MÓVIL (Con !important) */
 html.light-theme, body.light-theme {
     --bg-main: #f8fafc; --bg-panel: rgba(255, 255, 255, 0.98); --text-main: #0f172a; --text-muted: #334155;
     --border: rgba(217, 70, 239, 0.4); --other-msg: #ffffff; --input-bg: #e2e8f0; --hover-bg: rgba(0,0,0,0.05);
-    background-color: rgba(240, 244, 248, 0.9); background-blend-mode: lighten;
+    background-image: none !important;
+    background-color: var(--bg-main) !important;
 }
 
 body { background-color: var(--bg-main); background-image: url('Nani.jpg'); background-size: cover; background-position: center; background-attachment: fixed; color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s;}
@@ -42,7 +44,7 @@ body { background-color: var(--bg-main); background-image: url('Nani.jpg'); back
 @keyframes popInCentered { from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 html.light-theme .registro-container { box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15); }
 
-/* ONBOARDING REPARADO (TRANSICIÓN SUAVE, SIN BUG DE BLOQUEO) */
+/* ONBOARDING REPARADO */
 .onboard-step { display: none; opacity: 0; transition: opacity 0.4s ease; pointer-events: none;}
 .onboard-step.active { display: block; opacity: 1; pointer-events: all; animation: fadeIn 0.4s ease;}
 @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
@@ -67,7 +69,7 @@ html.light-theme .registro-container { box-shadow: 0 15px 50px rgba(0, 0, 0, 0.1
 .link-text { color: var(--accent); text-decoration: none; font-weight: 600; transition: 0.2s; }
 .link-text:hover { color: var(--accent-hover); }
 
-/* CHAT LAYOUT GENERAL Y VISTAS AISLADAS (DISPLAY NONE EVITA BLOQUEOS) */
+/* CHAT LAYOUT GENERAL */
 .chat-layout { width: 100%; max-width: 1500px; height: 94vh; display: flex; background: var(--bg-panel); border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; backdrop-filter: blur(20px); position: relative;}
 html.light-theme .chat-layout { box-shadow: 0 20px 50px rgba(0,0,0,0.15); }
 
@@ -108,6 +110,10 @@ html.light-theme .lobby-panel { background: rgba(255,255,255,0.95); }
 .purp-chat-item { background: linear-gradient(145deg, rgba(217,70,239,0.05), rgba(147,51,234,0.05)) !important; border: 1px solid rgba(217,70,239,0.2) !important; border-radius: 20px !important; margin-bottom: 12px; transition: 0.3s !important; padding: 15px !important;}
 .purp-chat-item:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(217,70,239,0.15); background: linear-gradient(145deg, rgba(217,70,239,0.15), rgba(147,51,234,0.15)) !important; border-color: var(--accent) !important; }
 
+/* NUEVO BOTON OPCIONES CHAT */
+.chat-opts-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px; border-radius: 10px; cursor: pointer; transition: 0.2s; font-size: 1rem;}
+.chat-opts-btn:hover { background: var(--hover-bg); color: var(--accent); }
+
 .btn-icon-small { background: var(--bg-main); border: 1px solid var(--border); padding: 12px 18px; border-radius: 12px; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
 .btn-icon-small:hover { color: var(--text-main); border-color: var(--accent); background: rgba(217, 70, 239, 0.1);}
 
@@ -124,7 +130,7 @@ html.light-theme .chat-header { background: rgba(255, 255, 255, 0.9); border-bot
 .dropdown-list li:hover { background: var(--hover-bg); color: var(--accent);}
 html.light-theme .dropdown-list { background: rgba(255,255,255,0.98); }
 
-/* CHAT BACKGROUND EXPANDIDO Y CORRECTO */
+/* CHAT BACKGROUND */
 .chat-messages { width: 100%; flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 100px; }
 .chat-messages { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; background-attachment: fixed !important;}
 
@@ -143,7 +149,6 @@ html.light-theme .message { border: 1px solid rgba(0,0,0,0.1); }
 .msg-footer { display: flex; justify-content: flex-end; align-items: center; gap: 5px; margin-top: 5px; font-size: 0.75rem; color: rgba(255,255,255,0.7); }
 html.light-theme .msg-footer { color: #64748b; }
 
-/* ANIMACIÓN PARA LOCALIZAR RESPUESTA TIPO WHATSAPP */
 .quoted-message { background: rgba(0,0,0,0.4); border-left: 4px solid var(--accent); padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 0.85rem; transition: 0.3s;}
 html.light-theme .quoted-message { background: rgba(0,0,0,0.05); }
 .highlight-msg { background: rgba(217, 70, 239, 0.4) !important; transition: background 0.5s ease; border-radius: 12px;}
@@ -174,7 +179,7 @@ html.light-theme .context-menu { background: rgba(255, 255, 255, 0.98); }
 .context-menu button:hover { background: var(--hover-bg); color: var(--accent);}
 .context-menu button.danger-text:hover { color: var(--danger); }
 
-/* PANEL EMOJI/STICKER AJUSTADO CON BOTON CERRAR */
+/* PANEL EMOJI/STICKER */
 .unified-picker { position: absolute; bottom: 85px; left: 20px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 20px; padding: 15px; display: none; flex-direction: column; width: 340px; z-index: 100; box-shadow: 0 10px 40px rgba(0,0,0,0.8); backdrop-filter: blur(20px); max-height: 350px;}
 .unified-picker.active { display: flex; animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);}
 @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
@@ -199,7 +204,7 @@ html.light-theme .context-menu { background: rgba(255, 255, 255, 0.98); }
 .f-item { background: var(--input-bg); padding: 15px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); transition: 0.2s; }
 .f-item:hover { border-color: var(--accent); background: var(--hover-bg);}
 
-/* BARRA INFERIOR Y BADGES ROJOS */
+/* BARRA INFERIOR Y BADGES */
 .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; height: 65px; background: var(--bg-panel); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 5000; backdrop-filter: blur(15px);}
 .nav-item { background: none; border: none; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; flex: 1; height: 100%; justify-content: center; position: relative;}
 .nav-item i { font-size: 1.3rem; margin-bottom: 2px;}
@@ -233,14 +238,13 @@ html.light-theme .settings-section { box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 html.light-theme .toggle-row { border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
 .toggle-row:last-child { border-bottom: none; }
 
-/* NUEVO INTERRUPTOR DE TEMA (SIN BLOQUEOS) */
 .theme-switch { position: relative; display: inline-block; width: 60px; height: 30px; }
 .theme-switch input { opacity: 0; width: 0; height: 0; }
 .theme-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); border: 1px solid var(--border); transition: .4s; border-radius: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-size: 14px; color: #fff;}
 html.light-theme .theme-slider { background-color: rgba(0,0,0,0.1); }
 .theme-slider::before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: var(--accent); transition: .4s; border-radius: 50%; z-index: 2;}
 .theme-switch input:checked + .theme-slider::before { transform: translateX(30px); background-color: var(--accent); }
-.theme-slider i { pointer-events: none; } /* ESTO EVITA EL BLOQUEO AL TOCAR EN MÓVIL */
+.theme-slider i { pointer-events: none; } 
 .theme-slider i.fa-sun { color: #facc15; }
 .theme-slider i.fa-moon { color: #111; } 
 
@@ -252,7 +256,6 @@ html.light-theme .color-selectors { background: rgba(0,0,0,0.02); border: 1px so
 .color-picker-wrapper:hover { transform: scale(1.1); border-color: var(--accent); }
 .color-picker-wrapper input[type="color"] { width: 200%; height: 200%; transform: translate(-25%, -25%); border: none; cursor: pointer; padding: 0; outline: none; }
 
-/* SLIDER DE TRANSPARENCIA COOL */
 input[type="range"].custom-range {
     -webkit-appearance: none;
     background: linear-gradient(to right, var(--accent), #4c1d95);
