@@ -20,16 +20,43 @@ const SUPER_ADMIN_EMAIL = 'unknownlineof@gmail.com';
 let currentUserUid, currentUserEmail, currentUsername, isSuperAdmin;
 let currentRoom = 'Lobby', currentRoomsData = [];
 let replyingTo = null, viewingProfile = null, selectedMsgContext = null;
-let selectedChatToDelete = null; // Para borrar chats de la lista
+let selectedChatToDelete = null;
 
 let userAge, userGender, userColor, userBubbleColor, userBubbleOpacity, userStatus, userAvatar, chatBg, userBio, useVibration, useNotifs, useLightMode;
 let myStickers = [], myFriends = [], myRequests = [], myRooms = [], mutedRooms = [];
 let pendingSentRequests = [];
 
 // ==========================================
+// CONTADORES DE MENSAJES (NUEVO)
+// ==========================================
+let unreadCounts = JSON.parse(localStorage.getItem('nani_unread') || '{}');
+const saveUnread = () => localStorage.setItem('nani_unread', JSON.stringify(unreadCounts));
+
+const updateBadges = () => {
+    let totalDMUnread = 0;
+    let totalRoomUnread = 0;
+
+    for(let r in unreadCounts) {
+        if(unreadCounts[r] > 0) {
+            if(r.includes('_')) totalDMUnread += unreadCounts[r];
+            else totalRoomUnread += unreadCounts[r];
+        }
+    }
+
+    const totalChats = totalDMUnread + totalRoomUnread;
+
+    const dmBadge = document.getElementById('dmTabBadge');
+    if(dmBadge) { dmBadge.textContent = totalDMUnread; dmBadge.style.display = totalDMUnread > 0 ? 'flex' : 'none'; }
+
+    const navBadge = document.getElementById('navChatsBadge');
+    if(navBadge) { navBadge.textContent = totalChats; navBadge.style.display = totalChats > 0 ? 'flex' : 'none'; }
+};
+
+
+// ==========================================
 // CACHE DE AVATARES Y SANITIZACIÓN
 // ==========================================
-const avatarCache = {}; // Almacena fotos para no llamar a Firebase constantemente
+const avatarCache = {}; 
 
 const escapeHTML = (str) => {
     if(typeof str !== 'string') return '';
@@ -43,7 +70,6 @@ const showToast = (msg, type = 'success') => {
 const hexToRgba = (hex, op) => { let r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${op})`; };
 const vibrate = (ms) => { if(useVibration && navigator.vibrate) navigator.vibrate(ms); };
 
-// Compresor Extremo para Avatares
 const compressAvatar = (file, cb) => { 
     const r = new FileReader(); r.readAsDataURL(file); 
     r.onload = e => { 
@@ -71,10 +97,9 @@ const compressImg = (file, cb) => {
     }; 
 };
 
-// Traer foto desde Firestore si no está en cache
 const fetchAvatar = async (username) => {
     if(avatarCache[username]) return;
-    avatarCache[username] = 'loading'; // Evita llamadas duplicadas
+    avatarCache[username] = 'loading'; 
     try {
         const q = query(collection(db, "usuarios"), where("username", "==", username));
         const docsSnap = await getDocs(q);
@@ -125,12 +150,19 @@ window.ui = {
         if(tv) tv.classList.add('active');
         if(btnElement) btnElement.classList.add('active');
         
-        if(viewId === 'viewLobby' && currentRoom !== 'Lobby') {
+        // FIX: Cierra menús invisibles que bloqueaban clicks en otras vistas
+        document.getElementById('unifiedPicker')?.classList.remove('active');
+        document.getElementById('contextMenu')?.classList.remove('active');
+        document.getElementById('chatContextMenu')?.classList.remove('active');
+        
+        // Si salimos de un chat hacia otra pestaña, reseteamos la sala actual a Lobby
+        // Esto evita errores de navegación y estado congelado
+        if(viewId !== 'viewChat' && currentRoom !== 'Lobby') {
             currentRoom = 'Lobby'; 
             socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
         }
-        if(viewId === 'viewSocial') { const b = document.getElementById('reqTabBadge'); if(b) b.style.display = 'none'; const s = document.getElementById('navSocialBadge'); if(s) s.style.display = 'none'; }
-        if(viewId === 'viewChats') { const b = document.getElementById('navChatsBadge'); if(b) b.style.display = 'none'; }
+
+        updateBadges();
     },
     scrollToMessage: (msgId) => {
         const el = document.getElementById('msg-'+msgId);
@@ -143,12 +175,19 @@ window.ui = {
     enterRoomDirect: (nr) => {
         if(currentRoom === nr && nr !== 'Lobby') return;
         currentRoom = nr; 
+        
+        // Resetear contador no leído
+        unreadCounts[nr] = 0;
+        saveUnread();
+        updateBadges();
+
         const elT = document.getElementById('roomTitle'); if(elT) elT.innerHTML = escapeHTML(nr.replace(currentUsername, '').replace('_', ''));
         document.getElementById('chatMessages').innerHTML = ''; 
         checkRoomMembership();
         socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
         window.ui.switchView('viewChat', null);
         socket.emit('getRoomProfile', currentRoom);
+        renderMyRoomsUI();
     },
     openDMRoom: (friendName) => {
         const roomName = [currentUsername, friendName].sort().join('_');
@@ -158,14 +197,13 @@ window.ui = {
 };
 
 // ==========================================
-// DELEGACIÓN GLOBAL (CORREGIDA PARA ACCIONES)
+// DELEGACIÓN GLOBAL
 // ==========================================
 document.addEventListener('click', (e) => {
     
-    // 1. Acciones Dinámicas (Amigos, Cancelar, Opciones Chat) - ARRIBA PARA QUE FUNCIONE SIEMPRE
     const actionTarget = e.target.closest('[data-action]');
     if (actionTarget) {
-        e.stopPropagation(); // Previene que se abra el perfil accidentalmente
+        e.stopPropagation(); 
         const action = actionTarget.getAttribute('data-action');
         const targetUser = actionTarget.getAttribute('data-user');
         const targetRoom = actionTarget.getAttribute('data-room');
@@ -222,13 +260,11 @@ document.addEventListener('click', (e) => {
         return;
     }
 
-    // Cerrar Menús contextuales si se hace clic fuera
     const mainCtx = document.getElementById('contextMenu');
     if(!e.target.closest('.context-menu') && mainCtx) mainCtx.classList.remove('active');
     const chatCtx = document.getElementById('chatContextMenu');
     if(!e.target.closest('.context-menu') && chatCtx) chatCtx.classList.remove('active');
 
-    // 2. Perfiles
     const profileTarget = e.target.closest('[data-profile]');
     if (profileTarget) {
         let username = profileTarget.getAttribute('data-profile');
@@ -244,28 +280,24 @@ document.addEventListener('click', (e) => {
         return;
     }
     
-    // 3. Unirse a Salas
     const roomTarget = e.target.closest('[data-room]');
     if (roomTarget) {
         window.ui.enterRoomDirect(roomTarget.getAttribute('data-room'));
         return;
     }
 
-    // 4. Entrar a DMs
     const dmTarget = e.target.closest('[data-dm]');
     if (dmTarget) {
         window.ui.openDMRoom(dmTarget.getAttribute('data-dm'));
         return;
     }
 
-    // 5. Navegación Inferior Nativa
     const navTarget = e.target.closest('.bottom-nav .nav-item[data-view]');
     if (navTarget) {
         window.ui.switchView(navTarget.dataset.view, navTarget);
         return;
     }
 
-    // 6. Pestañas Genéricas
     const tabTarget = e.target.closest('.picker-tab, .f-tab');
     if (tabTarget) {
         const container = tabTarget.closest('.friends-container') || tabTarget.closest('.unified-picker');
@@ -279,7 +311,6 @@ document.addEventListener('click', (e) => {
         return;
     }
 
-    // 7. Creador DM Directo desde Modal
     const dmCreateTarget = e.target.closest('[data-dm-create]');
     if(dmCreateTarget && viewingProfile) {
         document.getElementById('discordProfileModal').classList.remove('active'); 
@@ -287,7 +318,6 @@ document.addEventListener('click', (e) => {
         return;
     }
 
-    // 8. Botones de Onboarding
     if(e.target.id === 'nextOnboardBtn') {
         const age = document.getElementById('onboardAge').value;
         if(age >= 13) {
@@ -330,10 +360,12 @@ const safeAddListener = (id, event, handler) => { const el = document.getElement
 safeAddListener('ctxDeleteChat', 'click', () => {
     if(selectedChatToDelete) {
         myRooms = myRooms.filter(r => r !== selectedChatToDelete);
+        delete unreadCounts[selectedChatToDelete];
         saveAppPrefs();
+        saveUnread();
+        updateBadges();
         renderMyRoomsUI();
         
-        // Si estábamos dentro de ese chat, volvemos al inicio
         if(currentRoom === selectedChatToDelete) {
             window.ui.switchView('viewLobby');
         }
@@ -378,7 +410,9 @@ onAuthStateChanged(auth, async (user) => {
     chatBg = localStorage.getItem('nani_bg') || ''; 
     useVibration = prefs.vibration !== false; 
     useNotifs = prefs.notifications !== false;
-    useLightMode = prefs.lightMode === true;
+
+    // Priorizamos siempre tu configuración guardada en Firebase para que no pelee con el LocalStorage móvil
+    useLightMode = prefs.lightMode !== undefined ? prefs.lightMode : (localStorage.getItem('nani_theme') === 'light');
 
     initApp();
 });
@@ -398,7 +432,8 @@ function initApp() {
     
     if (chatBg) window.ui.applyBackground(chatBg);
 
-    // Sistema Inmortal de Salas
+    updateBadges();
+
     socket.emit('reviveRooms', myRooms.filter(r => !r.includes('_')).map(r => ({id: r, name: r, creator: currentUsername, uid: currentUserUid, description: 'Sala restaurada por usuario.', avatar: 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'})));
 
     socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: 'Lobby', color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
@@ -444,7 +479,7 @@ safeAddListener('logoutBtnCtx', 'click', () => signOut(auth).then(() => window.l
 const checkRoomMembership = () => {
     if(currentRoom === 'Lobby') return;
     
-    if(currentRoom.includes('_')) { // DM
+    if(currentRoom.includes('_')) { 
         document.getElementById('chatForm').style.display = 'flex';
         document.getElementById('joinRoomPrompt').style.display = 'none';
         document.getElementById('chatMenuDropdownContainer').style.display = 'none';
@@ -474,7 +509,6 @@ safeAddListener('btnJoinCurrentRoom', 'click', () => {
     }
 });
 
-// Menú Chat (3 puntitos principal)
 safeAddListener('btnChatMenuToggle', 'click', () => { document.getElementById('chatMenuDropdown').classList.toggle('show'); });
 document.addEventListener('click', (e) => { 
     if(!e.target.closest('.custom-dropdown')) { const d = document.getElementById('chatMenuDropdown'); if(d) d.classList.remove('show'); }
@@ -490,7 +524,6 @@ safeAddListener('menuClearChatLocal', 'click', () => {
     showToast("Chat local vaciado");
 });
 
-// Fondo HD
 let tempBgData = null;
 safeAddListener('menuChangeBg', 'click', () => {
     document.getElementById('chatMenuDropdown').classList.remove('show');
@@ -518,14 +551,13 @@ safeAddListener('applyBgBtn', 'click', () => {
 });
 
 // ==========================================
-// RENDERIZAR "MIS CHATS" ESTILO PURP (CON FOTOS Y MENÚS)
+// RENDERIZAR "MIS CHATS" ESTILO PURP
 // ==========================================
 const renderMyRoomsUI = () => {
     const listRooms = document.getElementById('myJoinedRoomsList');
     const listDMs = document.getElementById('myDMsList');
     if(!listRooms || !listDMs) return;
     
-    // Auto-limpieza inteligente
     const validRoomIds = currentRoomsData.map(r => r.id);
     const originalLen = myRooms.length;
     myRooms = myRooms.filter(id => id.includes('_') || validRoomIds.includes(id));
@@ -534,6 +566,10 @@ const renderMyRoomsUI = () => {
     listRooms.innerHTML = myRooms.filter(r => !r.includes('_')).map(rName => {
         const rData = currentRoomsData.find(rm => rm.id === rName);
         if(!rData) return ''; 
+        
+        const unreadRoom = unreadCounts[rData.id] || 0;
+        const unreadBadgeHTML = unreadRoom > 0 ? `<span class="unread-counter">${unreadRoom}</span>` : '';
+
         return `
         <li class="f-item purp-chat-item" style="cursor:pointer;" data-room="${escapeHTML(rData.id)}">
             <div style="display:flex; align-items:center; gap:15px; flex:1;">
@@ -543,6 +579,7 @@ const renderMyRoomsUI = () => {
                     <span style="color:var(--accent); font-size:0.75rem; font-weight:600;"><i class="fas fa-users"></i> ${rData.userCount || 0} online</span>
                 </div>
             </div>
+            ${unreadBadgeHTML}
             <button class="chat-opts-btn" data-action="chatOptions" data-room="${escapeHTML(rData.id)}"><i class="fas fa-ellipsis-v"></i></button>
         </li>`;
     }).join('') || '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">No te has unido a ninguna sala aún.</p>';
@@ -558,6 +595,9 @@ const renderMyRoomsUI = () => {
             fetchAvatar(friend); 
         }
 
+        const unreadDM = unreadCounts[dmRoom] || 0;
+        const unreadBadgeHTML = unreadDM > 0 ? `<span class="unread-counter">${unreadDM}</span>` : '';
+
         return `
         <li class="f-item purp-chat-item" style="cursor:pointer;" data-dm="${safeF}">
             <div style="display:flex; align-items:center; gap:15px; flex:1;">
@@ -567,6 +607,7 @@ const renderMyRoomsUI = () => {
                     <span style="color:var(--text-muted); font-size:0.75rem;">Mensaje Directo</span>
                 </div>
             </div>
+            ${unreadBadgeHTML}
             <button class="chat-opts-btn" data-action="chatOptions" data-room="${escapeHTML(dmRoom)}"><i class="fas fa-ellipsis-v"></i></button>
         </li>`;
     }).join('') || '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">No tienes chats privados aún.</p>';
@@ -745,13 +786,10 @@ socket.on('profileData', (data) => {
         const shortUid = data.uid ? `#${data.uid.substring(0, 6).toUpperCase()}` : '#XXXXXX';
         const elUid = document.getElementById('dProfileUid');
         if(elUid) elUid.textContent = shortUid;
-
-        const adBadge = document.getElementById('adminBadge');
-        if(adBadge) adBadge.style.display = data.isAdmin ? 'inline-block' : 'none';
         
         let sColor = '#22c55e', sText = 'Conectado';
         if(data.status === 'Ausente') { sColor = '#eab308'; sText = 'Ausente'; }
-        else if(data.status === 'Ocupado') { sColor = '#ef4444'; sText = 'Ocupado'; }
+        else if(data.status === 'Ocupado') { sColor = '#d946ef'; sText = 'Ocupado'; } // Tu paleta
         else if(data.status === 'Desconectado') { sColor = '#64748b'; sText = 'Desconectado'; }
         
         const sd = document.querySelector('#dProfileStatusBadge .status-dot');
@@ -791,7 +829,7 @@ socket.on('profileData', (data) => {
         
         const wall = document.getElementById('dProfileComments');
         if(wall) {
-            wall.innerHTML = data.comments.map(c => `<div class="d-comment"><b style="color:var(--accent);">${escapeHTML(c.from)}</b> <span>${c.time} ${(data.username === currentUsername || isSuperAdmin) ? `<i class="fas fa-trash" style="color:var(--danger); cursor:pointer; margin-left:5px;" onclick="window.ui.deleteComment('${escapeHTML(data.username)}', '${c.id}')"></i>` : ''}</span><p>${escapeHTML(c.text)}</p></div>`).join('') || '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center;">Muro vacío.</p>';
+            wall.innerHTML = data.comments.map(c => `<div class="d-comment"><b style="color:var(--accent);">${escapeHTML(c.from)}</b> <span>${c.time} ${(data.username === currentUsername || isSuperAdmin) ? `<i class="fas fa-trash danger-text" style="cursor:pointer; margin-left:5px;" onclick="window.ui.deleteComment('${escapeHTML(data.username)}', '${c.id}')"></i>` : ''}</span><p>${escapeHTML(c.text)}</p></div>`).join('') || '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center;">Muro vacío.</p>';
         }
 
         document.getElementById('discordProfileModal').classList.add('active');
@@ -806,7 +844,7 @@ socket.on('newProfileComment', (data) => { if(viewingProfile === data.targetUser
 safeAddListener('closeDiscordProfileBtn', 'click', () => { document.getElementById('discordProfileModal').classList.remove('active'); });
 
 // ==========================================
-// RENDERIZAR LISTAS SOCIALES (CON FOTOS)
+// RENDERIZAR LISTAS SOCIALES
 // ==========================================
 const renderFriendsUI = () => {
     const renderList = (containerId, arrayData, isRequest) => { 
@@ -859,8 +897,6 @@ socket.on('friendRequestReceived', ({ from, to }) => {
         setDoc(doc(db, "usuarios", currentUserUid), { friendRequests: myRequests }, { merge: true }); 
         vibrate(200); 
         showToast(`¡${escapeHTML(from)} te envió una solicitud!`, "success");
-        const b = document.getElementById('reqTabBadge'); if(b) b.style.display = 'inline-block';
-        const ns = document.getElementById('navSocialBadge'); if(ns) ns.style.display = 'block';
         renderFriendsUI(); 
     }
 });
@@ -998,35 +1034,28 @@ const renderMessage = (msg, isHistoryLoad = false) => {
 
     const cm = document.getElementById('chatMessages'); 
     if(cm) { cm.appendChild(div); cm.scrollTop = cm.scrollHeight; }
-    
-    if(!isHistoryLoad && !isMe && useNotifs) { 
-        if(msg.room === currentRoom) {
-            if(!mutedRooms.includes(msg.room)) { const ns = document.getElementById('notificationSound'); if(ns) ns.play().catch(()=>{}); vibrate(150); }
-        } else {
-            if(msg.room.includes('_')) {
-                if(!myRooms.includes(msg.room)) { myRooms.push(msg.room); saveAppPrefs(); renderMyRoomsUI(); }
-                const bChats = document.getElementById('dmTabBadge'); if(bChats) bChats.style.display = 'inline-block';
-                const sChats = document.getElementById('navChatsBadge'); if(sChats) sChats.style.display = 'block';
-                showToast(`Nuevo mensaje privado de ${escapeHTML(msg.username)}`, 'success');
-                const ns = document.getElementById('notificationSound'); if(ns) ns.play().catch(()=>{}); vibrate(150);
-            } else if (!mutedRooms.includes(msg.room)) {
-                showToast(`Nuevo mensaje en ${escapeHTML(msg.room)}`, 'success');
-            }
-        }
-    }
 };
 
 socket.on('message', (msg) => {
+    
+    // Si el mensaje es de la sala en la que estamos parados, simplemente se pinta y no hay notif numerica.
     if(msg.room === currentRoom) {
         renderMessage(msg);
-    } else if(msg.room.includes('_') && msg.room.includes(currentUsername)) {
-        if(!myRooms.includes(msg.room)) { myRooms.push(msg.room); saveAppPrefs(); renderMyRoomsUI(); }
-        const bChats = document.getElementById('dmTabBadge'); if(bChats) bChats.style.display = 'inline-block';
-        const sChats = document.getElementById('navChatsBadge'); if(sChats) sChats.style.display = 'block';
-        showToast(`Nuevo mensaje privado de ${escapeHTML(msg.username)}`, 'success');
-        if(useNotifs) { const ns = document.getElementById('notificationSound'); if(ns) ns.play().catch(()=>{}); vibrate(150); }
-    } else if (myRooms.includes(msg.room) && !mutedRooms.includes(msg.room) && useNotifs) {
-        showToast(`Nuevo mensaje en ${escapeHTML(msg.room)}`, 'success');
+    } else {
+        // LÓGICA DE UNREAD COUNTER (Suma al contador numérico y guarda en LocalStorage)
+        unreadCounts[msg.room] = (unreadCounts[msg.room] || 0) + 1;
+        saveUnread();
+        updateBadges();
+        renderMyRoomsUI();
+
+        // Notificación Toast normal
+        if(msg.room.includes('_') && msg.room.includes(currentUsername)) {
+            if(!myRooms.includes(msg.room)) { myRooms.push(msg.room); saveAppPrefs(); renderMyRoomsUI(); }
+            showToast(`Nuevo mensaje privado de ${escapeHTML(msg.username)}`, 'success');
+            if(useNotifs) { const ns = document.getElementById('notificationSound'); if(ns) ns.play().catch(()=>{}); vibrate(150); }
+        } else if (myRooms.includes(msg.room) && !mutedRooms.includes(msg.room) && useNotifs) {
+            showToast(`Nuevo mensaje en ${escapeHTML(msg.room)}`, 'success');
+        }
     }
 });
 
