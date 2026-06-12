@@ -16,7 +16,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// Utilidad para notificaciones
 const showToast = (msg, type = 'error') => {
     const toast = document.getElementById('toastNotification');
     toast.textContent = msg;
@@ -24,7 +23,28 @@ const showToast = (msg, type = 'error') => {
     setTimeout(() => { toast.classList.remove('show'); }, 4000);
 };
 
-onAuthStateChanged(auth, (user) => { if (user) window.location.href = 'chat.html'; });
+const hideSplash = () => {
+    const splash = document.getElementById('splashScreen');
+    if(splash) {
+        splash.style.opacity = '0';
+        setTimeout(() => splash.style.display = 'none', 500);
+    }
+    const loginBox = document.getElementById('loginContainer');
+    if(loginBox) {
+        loginBox.style.opacity = '1';
+        loginBox.style.pointerEvents = 'all';
+    }
+};
+
+window.addEventListener('load', () => { setTimeout(hideSplash, 3000); });
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        window.location.replace('chat.html');
+    } else {
+        setTimeout(hideSplash, 800);
+    }
+});
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -37,7 +57,14 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     try {
         await signInWithEmailAndPassword(auth, email, password);
         showToast('¡Acceso concedido!', 'success');
-        window.location.href = 'chat.html';
+        
+        const splash = document.getElementById('splashScreen');
+        if(splash) {
+            splash.style.display = 'flex';
+            setTimeout(() => splash.style.opacity = '1', 50);
+        }
+        
+        window.location.replace('chat.html');
     } catch (error) {
         showToast('Correo o contraseña incorrectos.');
         btn.disabled = false; btn.textContent = 'Iniciar Sesión';
@@ -60,7 +87,12 @@ document.getElementById('googleLogin').addEventListener('click', async () => {
                 preferences: { color: "#d946ef" } 
             }, { merge: true });
         }
-        window.location.href = 'chat.html';
+        const splash = document.getElementById('splashScreen');
+        if(splash) {
+            splash.style.display = 'flex';
+            setTimeout(() => splash.style.opacity = '1', 50);
+        }
+        window.location.replace('chat.html');
     } catch (error) { showToast('Error al conectar con Google.'); }
 });
 

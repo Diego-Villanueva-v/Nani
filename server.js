@@ -28,7 +28,6 @@ const broadcastRoomsUpdate = () => {
     io.emit('updateRooms', roomsWithCounts);
 };
 
-// LIMPIEZA CADA MINUTO (Mantiene la memoria ligera)
 setInterval(() => {
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
@@ -48,7 +47,6 @@ setInterval(() => {
 
 io.on('connection', (socket) => {
     
-    // SISTEMA DE AUTO-RESURRECCIÓN DE SALAS (Si el servidor se reinicia, el cliente envía sus salas)
     socket.on('reviveRooms', (clientRooms) => {
         if(clientRooms && Array.isArray(clientRooms)) {
             clientRooms.forEach(cr => {
@@ -79,16 +77,27 @@ io.on('connection', (socket) => {
         io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers)));
     });
 
+    // NUEVO: ANUNCIAR CUANDO ALGUIEN SE UNE OFICIALMENTE A LA SALA
+    socket.on('announceJoin', ({ username, room }) => {
+        if (!roomHistory[room]) roomHistory[room] = [];
+        const sysMsg = {
+            msgId: Date.now().toString() + Math.floor(Math.random()*1000),
+            type: 'system',
+            text: `${username} se ha unido a la sala.`,
+            room: room,
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        };
+        roomHistory[room].push(sysMsg);
+        io.to(room).emit('message', sysMsg);
+    });
+
     socket.on('chatMessage', (data) => {
         if (!roomHistory[data.room]) roomHistory[data.room] = [];
         data.msgId = data.msgId || Date.now().toString(); 
         roomHistory[data.room].push(data);
         if (roomHistory[data.room].length > 100) roomHistory[data.room].shift(); 
         
-        // Emisión inteligente (DMs vs Public)
         if(data.room.includes('_')) {
-            // Es un DM. Asegurarse de enviarlo a las partes involucradas.
-            // Para eso, encontramos los sockets de los dos usuarios del DM
             const dmUsers = data.room.split('_');
             for(let sid in activeUsers) {
                 if(dmUsers.includes(activeUsers[sid].username)) {
@@ -96,7 +105,6 @@ io.on('connection', (socket) => {
                 }
             }
         } else {
-            // Emisión normal a la sala pública
             io.to(data.room).emit('message', data);
         }
     });
@@ -116,16 +124,10 @@ io.on('connection', (socket) => {
         const comments = profileComments[targetUser] || [];
         
         socket.emit('profileData', { 
-            uid: user.uid || '',
-            username: targetUser, 
-            status: user.status || 'Desconectado', 
+            uid: user.uid || '', username: targetUser, status: user.status || 'Desconectado', 
             avatar: user.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', 
-            color: user.color || '#d946ef', 
-            age: user.age || '', 
-            gender: user.gender || '', 
-            bio: user.bio || '', 
-            isAdmin: user.isAdmin || false, 
-            comments 
+            color: user.color || '#d946ef', age: user.age || '', gender: user.gender || '', 
+            bio: user.bio || '', isAdmin: user.isAdmin || false, comments 
         });
     });
 
@@ -139,17 +141,12 @@ io.on('connection', (socket) => {
         if (roomIndex !== -1) {
             if (activeRooms[roomIndex].uid === requesterUid || isSuperAdmin) {
                 if(newName && newName !== roomName) {
-                    activeRooms[roomIndex].id = newName;
-                    activeRooms[roomIndex].name = newName;
-                    if(roomHistory[roomName]) {
-                        roomHistory[newName] = roomHistory[roomName];
-                        delete roomHistory[roomName];
-                    }
+                    activeRooms[roomIndex].id = newName; activeRooms[roomIndex].name = newName;
+                    if(roomHistory[roomName]) { roomHistory[newName] = roomHistory[roomName]; delete roomHistory[roomName]; }
                 }
                 if(description) activeRooms[roomIndex].description = description;
                 if(avatar) activeRooms[roomIndex].avatar = avatar;
-                broadcastRoomsUpdate();
-                io.emit('roomProfileData', activeRooms[roomIndex]);
+                broadcastRoomsUpdate(); io.emit('roomProfileData', activeRooms[roomIndex]);
             }
         }
     });
@@ -182,10 +179,8 @@ io.on('connection', (socket) => {
         const room = activeRooms.find(r => r.id === roomName);
         if (room && !['General', 'Programacion', 'Juegos'].includes(room.id)) {
             if (room.uid === requesterUid || room.creator === requesterUser || requesterEmail === SUPER_ADMIN_EMAIL) {
-                activeRooms = activeRooms.filter(r => r.id !== roomName);
-                delete roomHistory[roomName];
-                broadcastRoomsUpdate();
-                io.emit('forceLeaveRoom', roomName); 
+                activeRooms = activeRooms.filter(r => r.id !== roomName); delete roomHistory[roomName];
+                broadcastRoomsUpdate(); io.emit('forceLeaveRoom', roomName); 
             }
         }
     });
@@ -193,8 +188,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const user = activeUsers[socket.id];
         if (user) {
-            delete activeUsers[socket.id];
-            broadcastRoomsUpdate();
+            delete activeUsers[socket.id]; broadcastRoomsUpdate();
             const getUniqueUsers = (arr) => Object.values(arr.reduce((acc, u) => ({...acc, [u.username]: u}), {}));
             io.to(user.room).emit('updateUserList', getUniqueUsers(Object.values(activeUsers).filter(u => u.room === user.room && !u.room.includes('_'))));
             io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers)));

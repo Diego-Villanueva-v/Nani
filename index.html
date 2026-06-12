@@ -11,12 +11,14 @@
 
 <div id="toastNotification" class="toast"></div>
 
-<div class="registro-container">
+<div id="splashScreen" class="splash-screen">
+    <img src="Nani_logo.png" class="nani-logo-img" alt="Nani Logo">
+    <p style="color: var(--accent); margin-top: 10px; font-weight: 600; letter-spacing: 2px; animation: pulse 1.5s infinite;">CARGANDO...</p>
+</div>
+
+<div class="registro-container" id="loginContainer" style="opacity: 0; transition: opacity 0.5s ease; pointer-events: none;">
     <div class="brand-header">
-        <div class="lobby-icon-container" style="margin-bottom: 10px;">
-            <i class="fas fa-meteor lobby-icon lobby-logo"></i>
-        </div>
-        <h2 style="font-size: 2rem; margin-top: 10px;">Bienvenido</h2>
+        <img src="Nani_logo.png" class="nani-logo-img" style="margin-bottom: 10px; animation: none;" alt="Nani Logo">
         <p>Inicia sesión para conectarte.</p>
     </div>
 
