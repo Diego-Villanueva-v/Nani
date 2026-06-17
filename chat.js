@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, orderBy, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDEnq3hg0mNd69JymjHKc1fU7XInY6laDk",
@@ -20,7 +20,7 @@ const SUPER_ADMIN_EMAIL = 'unknownlineof@gmail.com';
 let currentUserUid, currentUserEmail, currentUsername, isSuperAdmin;
 let currentRoom = 'Lobby', currentRoomsData = [];
 let replyingTo = null, viewingProfile = null, selectedMsgContext = null;
-let selectedChatToDelete = null;
+let selectedChatToDelete = null, unsubMessages = null;
 
 let userAge, userGender, userColor, userBubbleColor, userBubbleOpacity, userStatus, userAvatar, chatBg, userBio, useVibration, useNotifs, useLightMode;
 let myStickers = [], myFriends = [], myRequests = [], myRooms = [], mutedRooms = [];
@@ -33,7 +33,6 @@ const killSplashScreen = () => {
         setTimeout(() => { splash.style.display = 'none'; }, 500);
     }
 };
-setTimeout(killSplashScreen, 3000);
 
 let unreadCounts = JSON.parse(localStorage.getItem('nani_unread') || '{}');
 const saveUnread = () => localStorage.setItem('nani_unread', JSON.stringify(unreadCounts));
@@ -58,27 +57,67 @@ const compressAvatar = (file, cb) => { const r = new FileReader(); r.readAsDataU
 const compressImg = (file, cb) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = e => { const i = new Image(); i.src = e.target.result; i.onload = () => { const c = document.createElement('canvas'); const sc = Math.min(800/i.width, 1); c.width = i.width*sc; c.height = i.height*sc; c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); cb(c.toDataURL('image/jpeg', 0.8)); }; }; };
 
 const fetchAvatar = async (username) => {
-    if(avatarCache[username]) return; avatarCache[username] = 'loading'; 
-    try { const q = query(collection(db, "usuarios"), where("username", "==", username)); const docsSnap = await getDocs(q); if(!docsSnap.empty) { avatarCache[username] = docsSnap.docs[0].data().avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'; renderMyRoomsUI(); renderFriendsUI(); }
-    } catch(e) { avatarCache[username] = 'https://cdn-icons-png.flaticon.com/512/149/149071.png'; }
+    if(avatarCache[username]) return avatarCache[username]; 
+    avatarCache[username] = 'loading'; 
+    try { 
+        const q = query(collection(db, "usuarios"), where("username", "==", username)); 
+        const docsSnap = await getDocs(q); 
+        if(!docsSnap.empty) { 
+            avatarCache[username] = docsSnap.docs[0].data().avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'; 
+            renderMyRoomsUI(); renderFriendsUI(); 
+            document.querySelectorAll(`.msg-avatar[data-user="${username}"]`).forEach(img => img.src = avatarCache[username]);
+            return avatarCache[username];
+        }
+    } catch(e) {} 
+    avatarCache[username] = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+    return avatarCache[username];
 };
 
 window.ui = {
-    openProfile: (username) => { if(!username) return; viewingProfile = username; socket.emit('getProfile', username); },
+    openProfile: async (username) => { 
+        if(!username) return; viewingProfile = username; 
+        const q = query(collection(db, "usuarios"), where("username", "==", username));
+        const docsSnap = await getDocs(q);
+        if(!docsSnap.empty) {
+            const data = docsSnap.docs[0].data();
+            const comments = data.muro || [];
+            showProfileModal({
+                uid: docsSnap.docs[0].id, username: username, status: data.preferences?.status || 'Desconectado',
+                avatar: data.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+                color: data.preferences?.color || '#d946ef', bio: data.bio || '', comments: comments
+            });
+        }
+    },
     applyTheme: (isLight) => {
-        if(isLight) { document.documentElement.classList.add('light-theme'); document.body.classList.add('light-theme'); localStorage.setItem('nani_theme', 'light'); } 
-        else { document.documentElement.classList.remove('light-theme'); document.body.classList.remove('light-theme'); localStorage.setItem('nani_theme', 'dark'); }
+        useLightMode = isLight;
+        if(isLight) { 
+            document.documentElement.classList.add('light-theme'); 
+            document.body.classList.add('light-theme'); 
+            localStorage.setItem('nani_theme', 'light'); 
+            document.body.style.backgroundImage = 'none';
+        } else { 
+            document.documentElement.classList.remove('light-theme'); 
+            document.body.classList.remove('light-theme'); 
+            localStorage.setItem('nani_theme', 'dark'); 
+            if(chatBg) document.body.style.backgroundImage = `url('${chatBg}')`;
+            else document.body.style.backgroundImage = `url('Nani.jpg')`;
+        }
     },
     applyBackground: (bgUrl) => {
-        const cm = document.getElementById('chatMessages'); if(!cm) return;
-        if(!bgUrl || bgUrl === 'Nane.jpg') { cm.style.cssText = ''; } 
-        else { cm.style.cssText = `background-image: url('${bgUrl}'); background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; background-attachment: fixed !important;`; }
+        if(useLightMode) return;
+        const body = document.body;
+        if(!bgUrl || bgUrl === 'Nane.jpg') { body.style.backgroundImage = `url('Nani.jpg')`; } 
+        else { body.style.backgroundImage = `url('${bgUrl}')`; }
     },
     switchView: (viewId, btnElement) => {
         document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active')); document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
         const tv = document.getElementById(viewId); if(tv) tv.classList.add('active'); if(btnElement) btnElement.classList.add('active');
         document.getElementById('unifiedPicker')?.classList.remove('active'); document.getElementById('contextMenu')?.classList.remove('active'); document.getElementById('chatContextMenu')?.classList.remove('active');
-        if(viewId !== 'viewChat' && currentRoom !== 'Lobby') { currentRoom = 'Lobby'; socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio }); }
+        if(viewId !== 'viewChat' && currentRoom !== 'Lobby') { 
+            currentRoom = 'Lobby'; 
+            socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, status: userStatus }); 
+            if(unsubMessages) unsubMessages();
+        }
         updateBadges();
     },
     scrollToMessage: (msgId) => { const el = document.getElementById('msg-'+msgId); if(el) { el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 2000); } },
@@ -86,8 +125,30 @@ window.ui = {
         if(currentRoom === nr && nr !== 'Lobby') return; currentRoom = nr; unreadCounts[nr] = 0; saveUnread(); updateBadges();
         const elT = document.getElementById('roomTitle'); if(elT) elT.innerHTML = escapeHTML(nr.replace(currentUsername, '').replace('_', ''));
         document.getElementById('chatMessages').innerHTML = ''; checkRoomMembership();
-        socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
-        window.ui.switchView('viewChat', null); socket.emit('getRoomProfile', currentRoom); renderMyRoomsUI();
+        socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, status: userStatus });
+        window.ui.switchView('viewChat', null); 
+        
+        if(!nr.includes('_')) {
+            const roomInfo = currentRoomsData.find(r => r.id === nr);
+            if(roomInfo) updateRoomProfileModal(roomInfo);
+        }
+
+        renderMyRoomsUI();
+
+        // PERSISTENCIA: Escuchar mensajes desde Firebase
+        if(unsubMessages) unsubMessages();
+        const q = query(collection(db, "mensajes"), where("room", "==", currentRoom), orderBy("msgId", "asc"), limit(100));
+        unsubMessages = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                    renderMessage(change.doc.data());
+                }
+                if (change.type === "removed") {
+                    const m = document.getElementById(`msg-${change.doc.data().msgId}`);
+                    if(m) m.remove();
+                }
+            });
+        });
     },
     openDMRoom: (friendName) => { const roomName = [currentUsername, friendName].sort().join('_'); window.ui.enterRoomDirect(roomName); if(!myRooms.includes(roomName)) { myRooms.push(roomName); saveAppPrefs(); renderMyRoomsUI(); } }
 };
@@ -100,7 +161,7 @@ document.addEventListener('click', (e) => {
         else if(action === 'rejectFriend') { myRequests = myRequests.filter(r => r !== targetUser); saveAppPrefs(); renderFriendsUI(); } 
         else if(action === 'sendFriendReq') { socket.emit('sendFriendRequest', { from: currentUsername, to: targetUser }); pendingSentRequests.push(targetUser); actionTarget.setAttribute('data-action', 'cancelFriendReq'); actionTarget.innerHTML = '<i class="fas fa-times"></i> Cancelar Solicitud'; actionTarget.classList.replace('btn-primary', 'btn-danger-outline'); showToast("Solicitud enviada", "success"); } 
         else if(action === 'cancelFriendReq') { pendingSentRequests = pendingSentRequests.filter(r => r !== targetUser); actionTarget.setAttribute('data-action', 'sendFriendReq'); actionTarget.innerHTML = '<i class="fas fa-user-plus"></i> Añadir Amigo'; actionTarget.classList.replace('btn-danger-outline', 'btn-primary'); showToast("Solicitud cancelada"); } 
-        else if(action === 'removeFriend') { if(confirm(`¿Estás seguro de eliminar a ${escapeHTML(targetUser)} de tu lista de amigos?`)) { myFriends = myFriends.filter(f => f !== targetUser); saveAppPrefs(); renderFriendsUI(); showToast(`Eliminaste a ${escapeHTML(targetUser)}.`, "success"); } } 
+        else if(action === 'removeFriend') { if(confirm(`¿Estás seguro de eliminar a ${escapeHTML(targetUser)}?`)) { myFriends = myFriends.filter(f => f !== targetUser); saveAppPrefs(); renderFriendsUI(); showToast(`Eliminaste a ${escapeHTML(targetUser)}.`, "success"); } } 
         else if(action === 'chatOptions') { selectedChatToDelete = targetRoom; const ctxMenu = document.getElementById('chatContextMenu'); if(ctxMenu) { let x = e.pageX; let y = e.pageY; if(x + 160 > window.innerWidth) x -= 160; if(y + 100 > window.innerHeight) y -= 100; ctxMenu.style.left = `${x}px`; ctxMenu.style.top = `${y}px`; ctxMenu.classList.add('active'); } }
         return;
     }
@@ -120,7 +181,7 @@ document.addEventListener('click', (e) => {
     if(e.target.id === 'finishOnboardBtn') {
         const age = document.getElementById('onboardAge').value;
         if(age && tempGender) {
-            setDoc(doc(db, "usuarios", currentUserUid), { age: age, gender: tempGender }, { merge: true }).then(()=>{ userAge = age; userGender = tempGender; document.getElementById('onboardingModal').classList.remove('active'); socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio }); showToast("Perfil completado."); }).catch(()=> showToast("Error al guardar.", 'error'));
+            setDoc(doc(db, "usuarios", currentUserUid), { age: age, gender: tempGender }, { merge: true }).then(()=>{ userAge = age; userGender = tempGender; document.getElementById('onboardingModal').classList.remove('active'); socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, status: userStatus }); showToast("Perfil completado."); }).catch(()=> showToast("Error al guardar.", 'error'));
         } else showToast("Selecciona tu género.", 'error'); return;
     }
 });
@@ -145,8 +206,17 @@ onAuthStateChanged(auth, async (user) => {
         myStickers = prefs.stickers || []; myFriends = cloudData.friends || []; myRequests = cloudData.friendRequests || []; myRooms = prefs.rooms || ['General']; mutedRooms = prefs.mutedRooms || [];
         userAge = cloudData.age || ''; userGender = cloudData.gender || ''; userBio = cloudData.bio || ''; 
         userColor = prefs.color || '#d946ef'; userBubbleColor = prefs.bubbleColor || '#9333ea'; userBubbleOpacity = prefs.bubbleOpacity || '0.9'; userStatus = prefs.status || 'Conectado';
-        userAvatar = prefs.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'; chatBg = localStorage.getItem('nani_bg') || ''; 
+        userAvatar = cloudData.avatar || prefs.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'; chatBg = localStorage.getItem('nani_bg') || ''; 
         useVibration = prefs.vibration !== false; useNotifs = prefs.notifications !== false; useLightMode = prefs.lightMode !== undefined ? prefs.lightMode : (localStorage.getItem('nani_theme') === 'light');
+        
+        // Cargar Salas Globales desde Firebase
+        onSnapshot(collection(db, "salas"), (snapshot) => {
+            currentRoomsData = [];
+            snapshot.forEach(doc => currentRoomsData.push(doc.data()));
+            renderMyRoomsUI();
+            updateLobbyRooms(currentRoomsData);
+        });
+
         initApp();
     } catch(err) { killSplashScreen(); }
 });
@@ -156,21 +226,37 @@ function initApp() {
     window.ui.applyTheme(useLightMode);
     const tt = document.getElementById('themeToggle'); if(tt) tt.checked = useLightMode; const vt = document.getElementById('vibToggle'); if(vt) vt.checked = useVibration; const nt = document.getElementById('notifToggle'); if(nt) nt.checked = useNotifs;
     if (chatBg) window.ui.applyBackground(chatBg); updateBadges();
-    socket.emit('reviveRooms', myRooms.filter(r => !r.includes('_')).map(r => ({id: r, name: r, creator: currentUsername, uid: currentUserUid, description: 'Sala restaurada por usuario.', avatar: 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'})));
-    socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: 'Lobby', color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio });
+    
+    // Crear salas base si no existen en BD
+    if(isSuperAdmin) {
+        ['General', 'Programacion', 'Juegos'].forEach(async (nr) => {
+            const docRef = doc(db, "salas", nr);
+            const docSnap = await getDoc(docRef);
+            if(!docSnap.exists()){
+                setDoc(docRef, { id: nr, name: nr, creator: 'Sistema', uid: '000000', description: 'Sala de la comunidad', avatar: 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png' });
+            }
+        });
+    }
+
+    socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: 'Lobby', status: userStatus });
     window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]'));
     renderFriendsUI();
     setTimeout(killSplashScreen, 600);
 }
 
 const saveAppPrefs = async () => {
-    try { localStorage.setItem('nani_bg', chatBg); await setDoc(doc(db, "usuarios", currentUserUid), { bio: userBio, friendRequests: myRequests, friends: myFriends, preferences: { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, avatar: userAvatar, bgLocal: chatBg, rooms: myRooms, mutedRooms: mutedRooms, stickers: myStickers, vibration: useVibration, notifications: useNotifs, lightMode: useLightMode } }, { merge: true }); } catch(e) {}
+    try { 
+        localStorage.setItem('nani_bg', chatBg); 
+        await setDoc(doc(db, "usuarios", currentUserUid), { 
+            avatar: userAvatar, bio: userBio, friendRequests: myRequests, friends: myFriends, 
+            preferences: { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, bgLocal: chatBg, rooms: myRooms, mutedRooms: mutedRooms, stickers: myStickers, vibration: useVibration, notifications: useNotifs, lightMode: useLightMode } 
+        }, { merge: true }); 
+    } catch(e) {}
 };
 
 safeAddListener('navSettingsBtn', 'click', () => { document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active')); document.getElementById('navSettingsBtn').classList.add('active'); document.getElementById('settingsModal').classList.add('active'); });
 safeAddListener('closeConfigBtn', 'click', () => { document.getElementById('settingsModal').classList.remove('active'); const cav = document.querySelector('.app-view.active'); if(cav) { document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active')); const mb = document.querySelector(`.bottom-nav .nav-item[data-view="${cav.id}"]`); if(mb) mb.classList.add('active'); } });
 
-// CIERRE DE SESIÓN SEGURO Y LIMPIO
 safeAddListener('logoutBtnCtx', 'click', async () => {
     const splash = document.getElementById('splashScreen');
     if(splash) { splash.style.display = 'flex'; setTimeout(() => splash.style.opacity = '1', 50); }
@@ -185,10 +271,22 @@ const checkRoomMembership = () => {
     if (myRooms.includes(currentRoom)) { document.getElementById('chatForm').style.display = 'flex'; document.getElementById('joinRoomPrompt').style.display = 'none'; } else { document.getElementById('chatForm').style.display = 'none'; document.getElementById('joinRoomPrompt').style.display = 'flex'; }
 };
 
-safeAddListener('btnJoinCurrentRoom', 'click', () => { if (!myRooms.includes(currentRoom)) { myRooms.push(currentRoom); saveAppPrefs(); checkRoomMembership(); renderMyRoomsUI(); socket.emit('announceJoin', { username: currentUsername, room: currentRoom }); showToast("¡Te has unido a la sala!"); } });
+safeAddListener('btnJoinCurrentRoom', 'click', async () => { 
+    if (!myRooms.includes(currentRoom)) { 
+        myRooms.push(currentRoom); saveAppPrefs(); checkRoomMembership(); renderMyRoomsUI(); 
+        const idUnicoMsg = Date.now().toString();
+        await setDoc(doc(db, "mensajes", idUnicoMsg), { msgId: idUnicoMsg, type: 'system', text: `${currentUsername} se ha unido a la sala.`, room: currentRoom, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+        showToast("¡Te has unido a la sala!"); 
+    } 
+});
+
 safeAddListener('btnChatMenuToggle', 'click', () => { document.getElementById('chatMenuDropdown').classList.toggle('show'); });
 document.addEventListener('click', (e) => { if(!e.target.closest('.custom-dropdown')) { const d = document.getElementById('chatMenuDropdown'); if(d) d.classList.remove('show'); } });
-safeAddListener('menuRoomInfo', 'click', () => { document.getElementById('chatMenuDropdown').classList.remove('show'); socket.emit('getRoomProfile', currentRoom); document.getElementById('roomProfileModal').classList.add('active'); });
+safeAddListener('menuRoomInfo', 'click', () => { 
+    document.getElementById('chatMenuDropdown').classList.remove('show'); 
+    const roomInfo = currentRoomsData.find(r => r.id === currentRoom);
+    if(roomInfo) { updateRoomProfileModal(roomInfo); document.getElementById('roomProfileModal').classList.add('active'); }
+});
 safeAddListener('menuClearChatLocal', 'click', () => { document.getElementById('chatMenuDropdown').classList.remove('show'); document.getElementById('chatMessages').innerHTML = ''; showToast("Chat local vaciado"); });
 
 let tempBgData = null;
@@ -202,7 +300,7 @@ const renderMyRoomsUI = () => {
     const listRooms = document.getElementById('myJoinedRoomsList'); const listDMs = document.getElementById('myDMsList'); if(!listRooms || !listDMs) return;
     listRooms.innerHTML = myRooms.filter(r => !r.includes('_')).map(rName => {
         const rData = currentRoomsData.find(rm => rm.id === rName) || { id: rName, name: rName, userCount: 0 }; const unreadRoom = unreadCounts[rData.id] || 0; const unreadBadgeHTML = unreadRoom > 0 ? `<span class="unread-counter">${unreadRoom}</span>` : '';
-        return `<li class="f-item purp-chat-item" style="cursor:pointer;" data-room="${escapeHTML(rData.id)}"><div class="purp-chat-content"><img src="${rData.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:55px; height:55px; border-radius:18px; object-fit:cover; border: 2px solid var(--border); flex-shrink: 0;"><div class="purp-chat-text"><span style="font-weight:800; color:var(--text-main); font-size:1.1rem;">${escapeHTML(rData.name)}</span><span style="color:var(--accent); font-size:0.75rem; font-weight:600;"><i class="fas fa-users"></i> ${rData.userCount || 0} online</span></div></div>${unreadBadgeHTML}<button class="chat-opts-btn" data-action="chatOptions" data-room="${escapeHTML(rData.id)}"><i class="fas fa-ellipsis-v"></i></button></li>`;
+        return `<li class="f-item purp-chat-item" style="cursor:pointer;" data-room="${escapeHTML(rData.id)}"><div class="purp-chat-content"><img src="${rData.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:55px; height:55px; border-radius:18px; object-fit:cover; border: 2px solid var(--border); flex-shrink: 0;"><div class="purp-chat-text"><span style="font-weight:800; color:var(--text-main); font-size:1.1rem;">${escapeHTML(rData.name)}</span><span style="color:var(--accent); font-size:0.75rem; font-weight:600;"><i class="fas fa-users"></i> Sala Pública</span></div></div>${unreadBadgeHTML}<button class="chat-opts-btn" data-action="chatOptions" data-room="${escapeHTML(rData.id)}"><i class="fas fa-ellipsis-v"></i></button></li>`;
     }).join('') || '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">No te has unido a ninguna sala aún.</p>';
 
     listDMs.innerHTML = myRooms.filter(r => r.includes('_') && r.includes(currentUsername)).map(dmRoom => {
@@ -215,21 +313,30 @@ const renderMyRoomsUI = () => {
 
 safeAddListener('searchRoomInput', 'input', (e) => { const term = e.target.value.toLowerCase(); document.querySelectorAll('#dropdownList li').forEach(li => { li.style.display = li.textContent.toLowerCase().includes(term) ? 'flex' : 'none'; }); });
 
-socket.on('updateRooms', (rooms) => {
-    currentRoomsData = rooms; renderMyRoomsUI(); const dl = document.getElementById('dropdownList'); if(!dl) return; dl.innerHTML = '';
+const updateLobbyRooms = (rooms) => {
+    const dl = document.getElementById('dropdownList'); if(!dl) return; dl.innerHTML = '';
     rooms.forEach(r => {
         if(!r.id.includes('_')) { 
-            const safeRName = escapeHTML(r.name); const safeCreator = escapeHTML(r.creator); const userC = r.userCount || 0; const li = document.createElement('li'); li.setAttribute('data-room', r.id);
-            li.innerHTML = `<img src="${r.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:40px; height:40px; border-radius:12px; object-fit:cover; margin-right:12px;"> <div style="display:flex; flex-direction:column; flex:1;"><span style="font-weight:600;">${safeRName}</span><span style="color:var(--text-muted); font-size:0.7rem;">Por: ${safeCreator} &bull; <i class="fas fa-user" style="color:var(--accent);"></i> ${userC} online</span></div> <i class="fas fa-sign-in-alt" style="color:var(--accent);"></i>`;
+            const safeRName = escapeHTML(r.name); const safeCreator = escapeHTML(r.creator); const li = document.createElement('li'); li.setAttribute('data-room', r.id);
+            li.innerHTML = `<img src="${r.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:40px; height:40px; border-radius:12px; object-fit:cover; margin-right:12px;"> <div style="display:flex; flex-direction:column; flex:1;"><span style="font-weight:600;">${safeRName}</span><span style="color:var(--text-muted); font-size:0.7rem;">Por: ${safeCreator}</span></div> <i class="fas fa-sign-in-alt" style="color:var(--accent);"></i>`;
             li.style.display = 'flex'; li.style.alignItems = 'center'; li.style.background = 'var(--input-bg)'; li.style.marginBottom = '8px'; li.style.padding = '10px'; li.style.borderRadius = '12px'; li.style.cursor = 'pointer'; dl.appendChild(li);
         }
     });
+};
+
+safeAddListener('createRoomBtn', 'click', async () => { 
+    const el = document.getElementById('newRoomInput'); if(!el) return; 
+    const nr = escapeHTML(el.value.trim()).substring(0, 30); 
+    if(nr) { 
+        await setDoc(doc(db, "salas", nr), { id: nr, name: nr, creator: currentUsername, uid: currentUserUid, description: 'Una nueva sala pública.', avatar: 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png' });
+        el.value = ''; 
+        if(!myRooms.includes(nr)) { myRooms.push(nr); saveAppPrefs(); } 
+        setTimeout(() => { window.ui.enterRoomDirect(nr); }, 300); 
+    } 
 });
 
-safeAddListener('createRoomBtn', 'click', () => { const el = document.getElementById('newRoomInput'); if(!el) return; const nr = escapeHTML(el.value.trim()).substring(0, 30); if(nr) { socket.emit('createRoom', { roomName: nr, creator: currentUsername, uid: currentUserUid }); el.value = ''; if(!myRooms.includes(nr)) { myRooms.push(nr); saveAppPrefs(); } setTimeout(() => { window.ui.enterRoomDirect(nr); }, 300); } });
-
 let tempRoomAvatar = null;
-socket.on('roomProfileData', (rd) => {
+const updateRoomProfileModal = (rd) => {
     try {
         const rt = document.getElementById('roomTitle'); if(rt && !currentRoom.includes('_')) rt.innerHTML = `<img src="${rd.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1370/1370907.png'" style="width:30px; height:30px; border-radius:10px; object-fit:cover;"> ${escapeHTML(rd.name)}`;
         const rc = document.getElementById('roomCreator'); if(rc && !currentRoom.includes('_')) rc.textContent = `por ${escapeHTML(rd.creator)}`;
@@ -238,14 +345,29 @@ socket.on('roomProfileData', (rd) => {
         const mt = document.getElementById('muteRoomToggle'); if(mt) mt.checked = mutedRooms.includes(rd.name);
         const editSec = document.getElementById('rProfileEditSection'); if (canEdit) { editSec.style.display = 'block'; document.getElementById('rEditName').value = escapeHTML(rd.name); document.getElementById('rEditDesc').value = rd.description ? escapeHTML(rd.description) : ""; tempRoomAvatar = rd.avatar; } else { editSec.style.display = 'none'; }
     } catch(err) {}
-});
+};
 
 safeAddListener('closeRoomProfileBtn', 'click', () => { document.getElementById('roomProfileModal').classList.remove('active'); });
 safeAddListener('rEditAvatarInput', 'change', (e) => { if(e.target.files[0]) compressAvatar(e.target.files[0], (b64) => { document.getElementById('rProfileAvatar').src = b64; tempRoomAvatar = b64; }); });
-safeAddListener('saveRoomProfileBtn', 'click', () => { const nName = escapeHTML(document.getElementById('rEditName').value); const nDesc = escapeHTML(document.getElementById('rEditDesc').value); socket.emit('updateRoomProfile', { roomName: currentRoom, newName: nName, description: nDesc, avatar: tempRoomAvatar, requesterUid: currentUserUid }); if(nName && nName !== currentRoom) { myRooms = myRooms.map(r => r === currentRoom ? nName : r); currentRoom = nName; saveAppPrefs(); } showToast("Sala actualizada", "success"); });
+safeAddListener('saveRoomProfileBtn', 'click', async () => { 
+    const nName = escapeHTML(document.getElementById('rEditName').value); const nDesc = escapeHTML(document.getElementById('rEditDesc').value); 
+    await setDoc(doc(db, "salas", currentRoom), { name: nName, description: nDesc, avatar: tempRoomAvatar }, {merge: true});
+    if(nName && nName !== currentRoom) { 
+        // Lógica de migración omitida para simplicidad, actualizamos data actual
+        myRooms = myRooms.map(r => r === currentRoom ? nName : r); currentRoom = nName; saveAppPrefs(); 
+    } 
+    showToast("Sala actualizada", "success"); 
+});
+
 safeAddListener('leaveRoomBtnActual', 'click', () => { if(confirm("¿Seguro que deseas abandonar esta sala?")){ myRooms = myRooms.filter(r => r !== currentRoom); saveAppPrefs(); renderMyRoomsUI(); document.getElementById('roomProfileModal').classList.remove('active'); window.ui.switchView('viewLobby', document.querySelector('.bottom-nav .nav-item[data-view="viewLobby"]')); } });
-safeAddListener('deleteRoomBtnActual', 'click', () => { if(confirm(`¿Seguro que deseas ELIMINAR GLOBALMENTE la sala ${currentRoom}?`)) { socket.emit('deleteRoom', { roomName: currentRoom, requesterUid: currentUserUid, requesterEmail: currentUserEmail, requesterUser: currentUsername }); document.getElementById('roomProfileModal').classList.remove('active'); } });
-socket.on('forceLeaveRoom', (dr) => { if(currentRoom === dr) { showToast(`La sala fue eliminada.`); window.ui.switchView('viewLobby'); } myRooms = myRooms.filter(r => r !== dr); saveAppPrefs(); renderMyRoomsUI(); });
+safeAddListener('deleteRoomBtnActual', 'click', async () => { 
+    if(confirm(`¿Seguro que deseas ELIMINAR GLOBALMENTE la sala ${currentRoom}?`)) { 
+        await deleteDoc(doc(db, "salas", currentRoom));
+        document.getElementById('roomProfileModal').classList.remove('active'); 
+        showToast("Sala eliminada globalmente.");
+        window.ui.switchView('viewLobby');
+    } 
+});
 
 safeAddListener('muteRoomToggle', 'change', (e) => { if(e.target.checked) { if(!mutedRooms.includes(currentRoom)) mutedRooms.push(currentRoom); } else { mutedRooms = mutedRooms.filter(r => r !== currentRoom); } saveAppPrefs(); });
 safeAddListener('themeToggle', 'change', (e) => { useLightMode = e.target.checked; window.ui.applyTheme(useLightMode); saveAppPrefs(); });
@@ -259,10 +381,16 @@ safeAddListener('avatarInput', 'change', (e) => { if(e.target.files[0]) compress
 safeAddListener('saveProfileBtn', 'click', async () => {
     const btn = document.getElementById('saveProfileBtn'); btn.textContent = 'Guardando...'; btn.disabled = true;
     userColor = document.getElementById('colorPicker').value; userBubbleColor = document.getElementById('bubbleColorPicker').value; userBubbleOpacity = document.getElementById('bubbleOpacity').value; userStatus = document.getElementById('statusSelect').value; userBio = escapeHTML(document.getElementById('bioInput').value.trim()); 
-    try { await saveAppPrefs(); document.querySelectorAll('.my-message').forEach(m => { if (!m.classList.contains('type-image')) m.style.background = hexToRgba(userBubbleColor, userBubbleOpacity); const ns = m.querySelector('.msg-header span'); if(ns) ns.style.color = userColor; }); socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, color: userColor, avatar: userAvatar, status: userStatus, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, bio: userBio }); vibrate(100); setTimeout(() => { document.getElementById('dProfileEditSection').style.display = 'none'; btn.disabled = false; btn.textContent = 'Guardar Cambios'; window.ui.openProfile(currentUsername); }, 500); } catch(e) { showToast("Error al guardar", 'error'); btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
+    try { 
+        await saveAppPrefs(); 
+        document.querySelectorAll('.my-message').forEach(m => { if (!m.classList.contains('type-image')) m.style.background = hexToRgba(userBubbleColor, userBubbleOpacity); const ns = m.querySelector('.msg-header span'); if(ns) ns.style.color = userColor; }); 
+        socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, status: userStatus }); 
+        vibrate(100); 
+        setTimeout(() => { document.getElementById('dProfileEditSection').style.display = 'none'; btn.disabled = false; btn.textContent = 'Guardar Cambios'; window.ui.openProfile(currentUsername); }, 500); 
+    } catch(e) { showToast("Error al guardar", 'error'); btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
 });
 
-socket.on('profileData', (data) => {
+const showProfileModal = (data) => {
     try {
         avatarCache[data.username] = data.avatar; document.getElementById('dProfileName').textContent = escapeHTML(data.username); document.getElementById('dProfileName').style.color = data.color || '#fff';
         const shortUid = data.uid ? `#${data.uid.substring(0, 6).toUpperCase()}` : '#XXXXXX'; const elUid = document.getElementById('dProfileUid'); if(elUid) elUid.textContent = shortUid;
@@ -280,10 +408,37 @@ socket.on('profileData', (data) => {
         const wall = document.getElementById('dProfileComments'); if(wall) { wall.innerHTML = data.comments.map(c => `<div class="d-comment"><b style="color:var(--accent);">${escapeHTML(c.from)}</b> <span>${c.time} ${(data.username === currentUsername || isSuperAdmin) ? `<i class="fas fa-trash danger-text" style="cursor:pointer; margin-left:5px;" onclick="window.ui.deleteComment('${escapeHTML(data.username)}', '${c.id}')"></i>` : ''}</span><p>${escapeHTML(c.text)}</p></div>`).join('') || '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center;">Muro vacío.</p>'; }
         document.getElementById('discordProfileModal').classList.add('active'); const editSection = document.getElementById('dProfileEditSection'); if(editSection) editSection.style.display = 'none'; 
     } catch (err) {}
+};
+
+safeAddListener('dCommentBtn', 'click', async () => { 
+    const text = escapeHTML(document.getElementById('dCommentText').value.trim()); 
+    if(text && viewingProfile) { 
+        const q = query(collection(db, "usuarios"), where("username", "==", viewingProfile));
+        const docsSnap = await getDocs(q);
+        if(!docsSnap.empty){
+            const targetDocId = docsSnap.docs[0].id;
+            const newComment = { id: Date.now().toString(), from: currentUsername, text: text, time: new Date().toLocaleDateString() };
+            const currentMuro = docsSnap.docs[0].data().muro || [];
+            currentMuro.push(newComment);
+            await setDoc(doc(db, "usuarios", targetDocId), { muro: currentMuro }, {merge: true});
+            document.getElementById('dCommentText').value = '';
+            window.ui.openProfile(viewingProfile);
+        }
+    } 
 });
 
-safeAddListener('dCommentBtn', 'click', () => { const text = escapeHTML(document.getElementById('dCommentText').value.trim()); if(text && viewingProfile) { socket.emit('addComment', { targetUser: viewingProfile, from: currentUsername, text: text, time: new Date().toLocaleDateString() }); document.getElementById('dCommentText').value = ''; } });
-socket.on('newProfileComment', (data) => { if(viewingProfile === data.targetUser) socket.emit('getProfile', viewingProfile); });
+window.ui.deleteComment = async (targetUser, commentId) => {
+    const q = query(collection(db, "usuarios"), where("username", "==", targetUser));
+    const docsSnap = await getDocs(q);
+    if(!docsSnap.empty){
+        const targetDocId = docsSnap.docs[0].id;
+        const currentMuro = docsSnap.docs[0].data().muro || [];
+        const filteredMuro = currentMuro.filter(c => c.id !== commentId);
+        await setDoc(doc(db, "usuarios", targetDocId), { muro: filteredMuro }, {merge: true});
+        window.ui.openProfile(targetUser);
+    }
+};
+
 safeAddListener('closeDiscordProfileBtn', 'click', () => { document.getElementById('discordProfileModal').classList.remove('active'); });
 
 const renderFriendsUI = () => {
@@ -304,9 +459,9 @@ socket.on('friendRequestAccepted', ({ from, to }) => { if(to === currentUsername
 safeAddListener('toggleRoomUsersBtn', 'click', () => document.getElementById('roomUsersPanel').classList.toggle('active'));
 safeAddListener('closeRoomUsersBtn', 'click', () => document.getElementById('roomUsersPanel').classList.remove('active'));
 
-socket.on('updateUserList', (users) => { users.forEach(u => avatarCache[u.username] = u.avatar); const rl = document.getElementById('roomUsersList'); if(rl) rl.innerHTML = users.map(u => `<li class="f-item" data-profile="${escapeHTML(u.username)}" style="padding: 10px; cursor:pointer;"><div style="display:flex; align-items:center; gap:10px;"><img src="${u.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'" style="width:35px; height:35px; border-radius:50%; object-fit:cover;"><div><span style="color:${(u.username === currentUsername) ? userColor : (u.color||'#fff')}; font-weight:700; font-size:0.9rem;">${escapeHTML(u.username)}</span><br><small style="color:var(--text-muted); font-size:0.75rem;">${escapeHTML(u.status)}</small></div></div></li>`).join('') || '<p style="color:var(--text-muted); text-align:center; font-size:0.8rem;">Solo tú estás aquí.</p>'; });
+socket.on('updateUserList', (users) => { users.forEach(u => fetchAvatar(u.username)); const rl = document.getElementById('roomUsersList'); if(rl) rl.innerHTML = users.map(u => `<li class="f-item" data-profile="${escapeHTML(u.username)}" style="padding: 10px; cursor:pointer;"><div style="display:flex; align-items:center; gap:10px;"><img src="${avatarCache[u.username] || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'" style="width:35px; height:35px; border-radius:50%; object-fit:cover;" class="msg-avatar" data-user="${u.username}"><div><span style="color:${(u.username === currentUsername) ? userColor : (u.color||'#fff')}; font-weight:700; font-size:0.9rem;">${escapeHTML(u.username)}</span><br><small style="color:var(--text-muted); font-size:0.75rem;">${escapeHTML(u.status)}</small></div></div></li>`).join('') || '<p style="color:var(--text-muted); text-align:center; font-size:0.8rem;">Solo tú estás aquí.</p>'; });
 
-socket.on('updateGlobalUsers', (users) => { users.forEach(u => avatarCache[u.username] = u.avatar); renderFriendsUI(); const gl = document.getElementById('globalLobbyUsersList'); if(gl) gl.innerHTML = users.map(u => `<li class="f-item" data-profile="${escapeHTML(u.username)}" style="padding: 10px; cursor:pointer; background: transparent; border-color: rgba(255,255,255,0.05); margin-bottom:5px;"><div style="display:flex; align-items:center; gap:10px;"><img src="${u.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'" style="width:30px; height:30px; border-radius:50%; object-fit:cover;"><div><span style="color:${(u.username === currentUsername) ? userColor : (u.color||'#fff')}; font-weight:600; font-size:0.85rem;">${escapeHTML(u.username)}</span><br><small style="color:var(--text-muted); font-size:0.7rem;">${escapeHTML(u.status)}</small></div></div></li>`).join('') || '<p style="color:var(--text-muted); text-align:center;">Nadie conectado.</p>'; });
+socket.on('updateGlobalUsers', (users) => { users.forEach(u => fetchAvatar(u.username)); renderFriendsUI(); const gl = document.getElementById('globalLobbyUsersList'); if(gl) gl.innerHTML = users.map(u => `<li class="f-item" data-profile="${escapeHTML(u.username)}" style="padding: 10px; cursor:pointer; background: transparent; border-color: rgba(255,255,255,0.05); margin-bottom:5px;"><div style="display:flex; align-items:center; gap:10px;"><img src="${avatarCache[u.username] || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" class="msg-avatar" data-user="${u.username}"><div><span style="color:${(u.username === currentUsername) ? userColor : (u.color||'#fff')}; font-weight:600; font-size:0.85rem;">${escapeHTML(u.username)}</span><br><small style="color:var(--text-muted); font-size:0.7rem;">${escapeHTML(u.status)}</small></div></div></li>`).join('') || '<p style="color:var(--text-muted); text-align:center;">Nadie conectado.</p>'; });
 
 const up = document.getElementById('unifiedPicker');
 safeAddListener('toggleUnifiedPickerBtn', 'click', () => { if(up) up.classList.toggle('active'); if(up && up.classList.contains('active')) updateStickerMenu(); });
@@ -322,38 +477,52 @@ if(emc) emc.innerHTML = emojis.map(e => `<span>${e}</span>`).join('');
 
 safeAddListener('doGifSearchBtn', 'click', async () => { const term = escapeHTML(document.getElementById('gifSearch').value.trim()); if(!term) return; const res = document.getElementById('gifResults'); res.innerHTML = '<p>Buscando...</p>'; try { const req = await fetch(`https://g.tenor.com/v1/search?q=${term}&key=LIVDSRZULELA&limit=12`); const d = await req.json(); res.innerHTML = d.results.length === 0 ? '<p>Sin resultados.</p>' : ''; d.results.forEach(g => { const img = document.createElement('img'); img.src = g.media[0].tinygif.url; img.onclick = () => { enviarMensaje(g.media[0].gif.url, 'image'); up.classList.remove('active'); document.getElementById('gifSearch').value='';}; res.appendChild(img); }); } catch(e) { res.innerHTML = '<p>Error.</p>'; } });
 
-const enviarMensaje = (texto, tipo = 'text') => { if (!texto) return; const safeText = tipo === 'text' ? escapeHTML(texto) : texto; const idUnicoMsg = Date.now().toString() + Math.floor(Math.random()*1000); socket.emit('chatMessage', { msgId: idUnicoMsg, uid: currentUserUid, username: currentUsername, text: safeText, type: tipo, room: currentRoom, color: userColor, avatar: userAvatar, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, reply: replyingTo, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }); const cbtn = document.getElementById('cancelReplyBtn'); if(cbtn) cbtn.click(); };
+const enviarMensaje = async (texto, tipo = 'text') => { 
+    if (!texto) return; const safeText = tipo === 'text' ? escapeHTML(texto) : texto; 
+    const idUnicoMsg = Date.now().toString() + Math.floor(Math.random()*1000); 
+    
+    const msgData = { 
+        msgId: idUnicoMsg, uid: currentUserUid, username: currentUsername, text: safeText, type: tipo, 
+        room: currentRoom, color: userColor, avatar: userAvatar, bubbleBg: userBubbleColor, bubbleOpacity: userBubbleOpacity, 
+        reply: replyingTo, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+    };
+    
+    await setDoc(doc(db, "mensajes", idUnicoMsg), msgData);
+    socket.emit('chatMessageNotification', msgData); // Solo para notificar a otras salas activas
+    
+    const cbtn = document.getElementById('cancelReplyBtn'); if(cbtn) cbtn.click(); 
+};
+
 safeAddListener('chatForm', 'submit', (e) => { e.preventDefault(); const mi = document.getElementById('messageInput'); if(mi) { enviarMensaje(mi.value.trim(), 'text'); mi.value = ''; } });
 safeAddListener('fileInput', 'change', (e) => { const file = e.target.files[0]; if(!file) return; if(file.size > 8 * 1024 * 1024) return showToast("El archivo supera 8MB.", "error"); const isImage = file.type.startsWith('image/'); if (isImage && file.type !== 'image/gif') { compressImg(file, (b64) => enviarMensaje(b64, 'image')); } else { const r = new FileReader(); r.readAsDataURL(file); r.onload = (ev) => { if(isImage) enviarMensaje(ev.target.result, 'image'); else enviarMensaje(`${escapeHTML(file.name)}|${ev.target.result}`, 'file'); }; } });
 
-socket.on('messageDeleted', (msgId) => { const m = document.getElementById(`msg-${msgId}`); if(m) m.remove(); });
-socket.on('loadHistory', (history) => { const cm = document.getElementById('chatMessages'); if(cm) { cm.innerHTML = ''; history.forEach(msg => renderMessage(msg, true)); cm.scrollTop = cm.scrollHeight; }});
-
-const renderMessage = (msg, isHistoryLoad = false) => {
+const renderMessage = (msg) => {
+    if(document.getElementById(`msg-${msg.msgId}`)) return; // Evitar duplicados
     const div = document.createElement('div'); div.id = `msg-${msg.msgId}`;
     if (msg.type === 'system') { div.className = 'message system-message'; div.style.background = 'transparent'; div.style.border = 'none'; div.style.boxShadow = 'none'; div.style.alignSelf = 'center'; div.style.maxWidth = '90%'; div.innerHTML = `<span class="system-msg-text">${escapeHTML(msg.text)}</span>`; const cm = document.getElementById('chatMessages'); if(cm) { cm.appendChild(div); cm.scrollTop = cm.scrollHeight; } return; }
 
     const isMe = msg.uid === currentUserUid; div.className = `message ${isMe ? 'my-message' : ''} ${msg.type === 'image' ? 'type-image' : ''}`;
     const cBg = isMe ? userBubbleColor : (msg.bubbleBg || '#9333ea'); const cOp = isMe ? userBubbleOpacity : (msg.bubbleOpacity || 1); const cNameColor = isMe ? userColor : msg.color;
     if (msg.type !== 'image') { div.style.background = hexToRgba(cBg, cOp); if (!isMe) div.style.border = `1px solid ${cBg}`; }
-    const safeUsername = escapeHTML(msg.username); const safeAvatar = msg.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+    
+    // Obtener Avatar real desde caché/firebase para mensajes
+    fetchAvatar(msg.username);
+    const safeUsername = escapeHTML(msg.username); 
+    const safeAvatar = avatarCache[msg.username] || msg.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
     let rHtml = ''; if (msg.reply) { const safeReplyUser = escapeHTML(msg.reply.username); const safeReplyText = escapeHTML(msg.reply.text); const isReplyMedia = msg.reply.text.startsWith('data:') || msg.reply.text.startsWith('http'); rHtml = `<div class="quoted-message" onclick="window.ui.scrollToMessage('${msg.reply.msgId}')" style="border-left-color: ${isMe ? '#fff' : cNameColor}; cursor:pointer;"><strong style="color: ${isMe ? '#fff' : cNameColor};">${safeReplyUser}</strong><p>${isReplyMedia ? '📷 Media' : safeReplyText}</p></div>`; }
     let content = ''; if (msg.type === 'image') content = `<img src="${msg.text}" class="msg-image compact-img" onclick="document.getElementById('lightboxImg').src=this.src; document.getElementById('lightboxModal').classList.add('active');">`; else if (msg.type === 'file') { const splitIndex = msg.text.indexOf('|'); const fName = escapeHTML(msg.text.substring(0, splitIndex)); const fData = msg.text.substring(splitIndex + 1); content = `<div class="file-message"><i class="fas fa-file-alt"></i> <a href="${fData}" download="${fName}" style="color:inherit; text-decoration:none;">${fName}</a></div>`; } else content = `<p class="text">${msg.text}</p>`;
 
-    div.innerHTML = `<div class="msg-header" data-profile="${safeUsername}" style="cursor:pointer;"><img src="${safeAvatar}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'" class="msg-avatar"><span style="color: ${cNameColor}; font-weight: 800;">${safeUsername}</span></div>${rHtml} ${content} <div class="msg-footer"><span class="time">${msg.time}</span></div>`;
+    div.innerHTML = `<div class="msg-header" data-profile="${safeUsername}" style="cursor:pointer;"><img src="${safeAvatar}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'" class="msg-avatar" data-user="${safeUsername}"><span style="color: ${cNameColor}; font-weight: 800;">${safeUsername}</span></div>${rHtml} ${content} <div class="msg-footer"><span class="time">${msg.time}</span></div>`;
     div.addEventListener('contextmenu', (e) => { e.preventDefault(); showContextMenu(e, msg); }); let touchTimer; div.addEventListener('touchstart', (e) => { touchTimer = window.setTimeout(() => showContextMenu(e, msg), 600); }, {passive: true}); div.addEventListener('touchend', () => clearTimeout(touchTimer)); div.addEventListener('touchmove', () => clearTimeout(touchTimer));
     const cm = document.getElementById('chatMessages'); if(cm) { cm.appendChild(div); cm.scrollTop = cm.scrollHeight; }
 };
 
-socket.on('message', (msg) => {
-    if(msg.room === currentRoom) { renderMessage(msg); } 
-    else {
-        if(msg.type !== 'system') {
-            unreadCounts[msg.room] = (unreadCounts[msg.room] || 0) + 1; saveUnread(); updateBadges(); renderMyRoomsUI();
-            if(msg.room.includes('_') && msg.room.includes(currentUsername)) { if(!myRooms.includes(msg.room)) { myRooms.push(msg.room); saveAppPrefs(); renderMyRoomsUI(); } showToast(`Nuevo mensaje privado de ${escapeHTML(msg.username)}`, 'success'); if(useNotifs) { const ns = document.getElementById('notificationSound'); if(ns) ns.play().catch(()=>{}); vibrate(150); } } 
-            else if (myRooms.includes(msg.room) && !mutedRooms.includes(msg.room) && useNotifs) { showToast(`Nuevo mensaje en ${escapeHTML(msg.room)}`, 'success'); }
-        }
+socket.on('notification', (msg) => {
+    if(msg.room !== currentRoom && msg.type !== 'system') {
+        unreadCounts[msg.room] = (unreadCounts[msg.room] || 0) + 1; saveUnread(); updateBadges(); renderMyRoomsUI();
+        if(msg.room.includes('_') && msg.room.includes(currentUsername)) { if(!myRooms.includes(msg.room)) { myRooms.push(msg.room); saveAppPrefs(); renderMyRoomsUI(); } showToast(`Nuevo mensaje privado de ${escapeHTML(msg.username)}`, 'success'); if(useNotifs) { const ns = document.getElementById('notificationSound'); if(ns) ns.play().catch(()=>{}); vibrate(150); } } 
+        else if (myRooms.includes(msg.room) && !mutedRooms.includes(msg.room) && useNotifs) { showToast(`Nuevo mensaje en ${escapeHTML(msg.room)}`, 'success'); }
     }
 });
 
@@ -364,4 +533,7 @@ safeAddListener('ctxProfile', 'click', () => { window.ui.openProfile(selectedMsg
 safeAddListener('ctxReply', 'click', () => { replyingTo = { username: selectedMsgContext.username, text: selectedMsgContext.text, msgId: selectedMsgContext.msgId }; document.getElementById('replyName').textContent = escapeHTML(selectedMsgContext.username); document.getElementById('replyText').textContent = selectedMsgContext.type === 'image' ? '📷 Imagen' : escapeHTML(selectedMsgContext.text); document.getElementById('replyPreview').classList.add('active'); const mi = document.getElementById('messageInput'); if(mi) mi.focus(); ctxMenu.classList.remove('active'); });
 safeAddListener('ctxShare', 'click', async () => { if(!selectedMsgContext) return; const isMedia = selectedMsgContext.type === 'image' || selectedMsgContext.type === 'file'; const shareText = isMedia ? `Mira esto en la sala de Nani App` : `De ${selectedMsgContext.username}: "${selectedMsgContext.text}"`; const shareUrl = isMedia ? '' : window.location.href; if (navigator.share && !isMedia) { try { await navigator.share({ title: 'Nani? App', text: shareText, url: shareUrl }); } catch (err) {} } else { try { await navigator.clipboard.writeText(shareText + " " + window.location.href); showToast("Copiado al portapapeles.", "success"); } catch(e) { showToast("Error al copiar.", "error"); } } ctxMenu.classList.remove('active'); });
 safeAddListener('ctxSaveSticker', 'click', () => { if(!myStickers.includes(selectedMsgContext.text)) { myStickers.push(selectedMsgContext.text); setDoc(doc(db, "usuarios", currentUserUid), { preferences: { stickers: myStickers } }, { merge: true }); updateStickerMenu(); showToast("Sticker Guardado"); vibrate(100); } ctxMenu.classList.remove('active'); });
-safeAddListener('ctxDelete', 'click', () => { socket.emit('deleteMessage', { room: currentRoom, msgId: selectedMsgContext.msgId, requesterUid: currentUserUid, requesterEmail: currentUserEmail }); ctxMenu.classList.remove('active'); });
+safeAddListener('ctxDelete', 'click', async () => { 
+    await deleteDoc(doc(db, "mensajes", selectedMsgContext.msgId));
+    ctxMenu.classList.remove('active'); 
+});

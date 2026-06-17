@@ -11,29 +11,19 @@
 }
 
 html.light-theme, body.light-theme {
-    --bg-main: #f8fafc; --bg-panel: #ffffff; 
-    --text-main: #0f172a; --text-muted: #64748b;
-    --border: rgba(217, 70, 239, 0.4); --other-msg: #f1f5f9; 
-    --input-bg: #f8fafc; --hover-bg: rgba(217, 70, 239, 0.05);
+    --bg-main: #f8fafc !important; --bg-panel: #ffffff !important; 
+    --text-main: #0f172a !important; --text-muted: #64748b !important;
+    --border: rgba(217, 70, 239, 0.4) !important; --other-msg: #f1f5f9 !important; 
+    --input-bg: #f8fafc !important; --hover-bg: rgba(217, 70, 239, 0.05) !important;
     background-image: none !important;
     background-color: var(--bg-main) !important;
 }
 
-body { background-color: var(--bg-main); background-image: url('Nani.jpg'); background-size: cover; background-position: center; background-attachment: fixed; color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s;}
+body { background-color: var(--bg-main); background-size: cover; background-position: center; background-attachment: fixed; color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s, background-image 0.3s;}
 
-/* NUEVO LOGO NANI ESTILO IMAGEN */
-.nani-logo-img {
-    width: 100%;
-    max-width: 240px; 
-    height: auto;
-    margin: 0 auto 15px auto;
-    display: block;
-    animation: float 3s ease-in-out infinite;
-    filter: drop-shadow(0 10px 15px rgba(217, 70, 239, 0.3));
-}
+.nani-logo-img { width: 100%; max-width: 240px; height: auto; margin: 0 auto 15px auto; display: block; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 10px 15px rgba(217, 70, 239, 0.3));}
 @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
 
-/* PANTALLA DE CARGA (SPLASH SCREEN) */
 .splash-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-main); z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.6s ease-out; }
 .splash-screen.hidden { opacity: 0; pointer-events: none; }
 @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
@@ -111,18 +101,7 @@ html.light-theme .lobby-panel { background: rgba(255,255,255,0.95); }
 .dropdown-list li { padding: 12px 15px; border-radius: 12px; cursor: pointer; transition: 0.2s; color: var(--text-main); font-size: 0.95rem; background: var(--input-bg); border: 1px solid transparent;}
 .dropdown-list li:hover { border-color: var(--accent); color: var(--accent); font-weight: 600;}
 
-.purp-chat-item { 
-    background: linear-gradient(145deg, rgba(217,70,239,0.05), rgba(147,51,234,0.05)) !important; 
-    border: 1px solid rgba(217,70,239,0.2) !important; 
-    border-radius: 20px !important; 
-    margin-bottom: 12px; 
-    transition: 0.3s !important; 
-    padding: 15px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between;
-    gap: 10px;
-}
+.purp-chat-item { background: linear-gradient(145deg, rgba(217,70,239,0.05), rgba(147,51,234,0.05)) !important; border: 1px solid rgba(217,70,239,0.2) !important; border-radius: 20px !important; margin-bottom: 12px; transition: 0.3s !important; padding: 15px !important; display: flex !important; align-items: center !important; justify-content: space-between; gap: 10px; }
 .purp-chat-item:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(217,70,239,0.15); background: linear-gradient(145deg, rgba(217,70,239,0.15), rgba(147,51,234,0.15)) !important; border-color: var(--accent) !important; }
 .purp-chat-content { flex: 1; min-width: 0; display: flex; align-items: center; gap: 15px; }
 .purp-chat-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
