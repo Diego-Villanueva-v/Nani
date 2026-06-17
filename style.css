@@ -10,16 +10,18 @@
     --other-msg: rgba(39, 39, 42, 0.9); --input-bg: rgba(0,0,0,0.5); --hover-bg: rgba(255,255,255,0.05);
 }
 
-html.light-theme, body.light-theme {
+/* AQUÍ ARREGLAMOS EL FONDO Y MODO CLARO PARA SIEMPRE */
+html.light-theme, html.light-theme body {
     --bg-main: #f8fafc !important; --bg-panel: #ffffff !important; 
     --text-main: #0f172a !important; --text-muted: #64748b !important;
     --border: rgba(217, 70, 239, 0.4) !important; --other-msg: #f1f5f9 !important; 
     --input-bg: #f8fafc !important; --hover-bg: rgba(217, 70, 239, 0.05) !important;
-    background-image: none !important;
     background-color: var(--bg-main) !important;
+    background-image: none !important;
+    color: var(--text-main) !important;
 }
 
-body { background-color: var(--bg-main); background-size: cover; background-position: center; background-attachment: fixed; color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s, background-image 0.3s;}
+body { background-color: var(--bg-main); background-image: url('Nani.jpg'); background-size: cover; background-position: center; background-attachment: fixed; color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s;}
 
 .nani-logo-img { width: 100%; max-width: 240px; height: auto; margin: 0 auto 15px auto; display: block; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 10px 15px rgba(217, 70, 239, 0.3));}
 @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
@@ -289,11 +291,20 @@ html.light-theme .modal-content { box-shadow: 0 25px 50px rgba(0,0,0,0.15); }
 .modal.active .modal-content { transform: translateY(0); }
 .lightbox img { max-width: 90%; max-height: 90%; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.9); }
 
+/* CORRECCIONES PARA QUE EL MODO BLANCO EN MÓVIL FUNCIONE DE MARAVILLA */
 @media (max-width: 850px) {
     body { padding: 0; }
     
     .chat-layout { border-radius: 0; border: none; height: 100dvh; width: 100vw; position: fixed; top: 0; left: 0;}
-    html.light-theme body, html.light-theme .chat-layout { background-color: #f8fafc !important; background-image: none !important; }
+    
+    html.light-theme body, html.light-theme .chat-layout { 
+        background-color: #f8fafc !important; 
+        background-image: none !important; 
+    }
+    
+    html.light-theme .app-view, html.light-theme .lobby-panel, html.light-theme .main-views-container {
+        background-color: #f8fafc !important;
+    }
 
     .main-views-container { height: 100%; }
     .app-view { height: 100dvh; padding-bottom: 130px; overflow-y: hidden; }
@@ -325,3 +336,33 @@ html.light-theme .modal-content { box-shadow: 0 25px 50px rgba(0,0,0,0.15); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(217, 70, 239, 0.3); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+
+/* DISEÑO DEL SELECTOR DE ESTADOS */
+.status-selector-modern {
+    width: 100%;
+    padding: 12px 15px;
+    background: var(--input-bg);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    outline: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    appearance: none; 
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23d946ef%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 15px top 50%;
+    background-size: 12px auto;
+    transition: 0.3s;
+}
+.status-selector-modern:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(217, 70, 239, 0.3);
+}
+.status-selector-modern option {
+    background: var(--bg-panel);
+    color: var(--text-main);
+}

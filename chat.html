@@ -96,9 +96,12 @@
 
         <div id="viewChat" class="app-view">
             <header class="chat-header">
-                <div class="header-info" id="openRoomProfileBtn" style="cursor: pointer; padding: 5px; border-radius: 8px; transition: 0.2s;">
-                    <h2 id="roomTitle" style="display: flex; align-items: center; gap: 10px;">Cargando...</h2>
-                    <small id="roomCreator" style="color: var(--text-muted); font-size: 0.8rem;"></small>
+                <div class="header-info" id="openRoomProfileBtn" style="cursor: pointer; padding: 5px; border-radius: 8px; transition: 0.2s; display: flex; align-items: center; gap: 10px;">
+                    <img id="headerAvatar" src="" style="width: 38px; height: 38px; border-radius: 50%; display: none; object-fit: cover; border: 2px solid var(--border);">
+                    <div>
+                        <h2 id="roomTitle" style="display: flex; align-items: center; gap: 5px;">Cargando...</h2>
+                        <small id="roomCreator" style="color: var(--text-muted); font-size: 0.8rem;"></small>
+                    </div>
                 </div>
                 
                 <div style="display: flex; gap: 5px; align-items:center;">
@@ -107,7 +110,7 @@
                     <div class="custom-dropdown" style="margin-bottom:0;" id="chatMenuDropdownContainer">
                         <button class="btn-icon-small" id="btnChatMenuToggle"><i class="fas fa-ellipsis-v"></i></button>
                         <ul class="dropdown-list" id="chatMenuDropdown" style="position: absolute; right: 0; left: auto; top: 100%; width: 200px; z-index: 100;">
-                            <li id="menuRoomInfo"><i class="fas fa-info-circle" style="color:var(--accent); margin-right:8px;"></i> Info de la Sala</li>
+                            <li id="menuRoomInfo"><i class="fas fa-info-circle" style="color:var(--accent); margin-right:8px;"></i> Info</li>
                             <li id="menuChangeBg"><i class="fas fa-image" style="color:var(--accent); margin-right:8px;"></i> Cambiar Fondo</li>
                             <li id="menuResetBg"><i class="fas fa-eraser" style="margin-right:8px;"></i> Quitar Fondo</li>
                             <hr style="border-color: var(--border); margin: 5px 0;">
@@ -272,7 +275,7 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-end;">
                 <div>
                     <h3 id="dProfileName">Usuario</h3>
-                    <span id="dProfileUid" style="color: var(--accent); font-size: 0.75rem; font-family: monospace; letter-spacing: 1px;"></span>
+                    <span id="dProfileUid" style="color: var(--text-muted); font-size: 0.8rem; font-weight: 500;"></span>
                 </div>
                 <button id="editProfileToggleBtn" class="btn-primary-outline" style="width: auto; padding: 6px 12px; font-size: 0.8rem; display: none;"><i class="fas fa-pen"></i> Editar</button>
             </div>
@@ -291,16 +294,22 @@
             </div>
 
             <div class="form-group">
+                <label>Nombre a mostrar</label>
+                <input type="text" id="displayNameInput" class="input-chat-wrapper" style="width: 100%; padding: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 12px; outline: none;" placeholder="¿Cómo quieres que te llamen?" autocomplete="off" maxlength="20">
+            </div>
+
+            <div class="form-group">
                 <label>Biografía</label>
                 <input type="text" id="bioInput" class="input-chat-wrapper" style="width: 100%; padding: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 12px; outline: none;" placeholder="Un poco sobre ti..." autocomplete="off">
             </div>
             
             <div class="form-group">
                 <label>Estado</label>
-                <select id="statusSelect" class="input-chat-wrapper" style="width: 100%; padding: 12px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 12px; outline: none;">
+                <select id="statusSelect" class="status-selector-modern">
                     <option value="Conectado">🟢 Conectado</option>
                     <option value="Ausente">🌙 Ausente</option>
                     <option value="Ocupado">🔴 Ocupado</option>
+                    <option value="Invisible">👻 Invisible</option>
                 </select>
             </div>
             
@@ -325,8 +334,8 @@
             <h4 style="color: var(--text-main); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px;">Muro del Usuario</h4>
             <div class="discord-comments" id="dProfileComments"></div>
             <div class="discord-comment-input">
-                <input type="text" id="dCommentText" placeholder="Escribe en su muro..." autocomplete="off">
-                <button id="dCommentBtn" class="btn-primary" style="width: 45px; padding: 0;"><i class="fas fa-paper-plane"></i></button>
+                <input type="text" id="dCommentText" placeholder="Escribe un mensaje en su muro..." autocomplete="off">
+                <button id="dCommentBtn" class="btn-primary" style="width: 45px; padding: 0; border-radius: 12px;"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
         <button id="closeDiscordProfileBtn" class="discord-close-btn"><i class="fas fa-times"></i></button>

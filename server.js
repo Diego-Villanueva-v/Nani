@@ -8,7 +8,14 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 }); 
 
+// Mi lista de gente conectada
 let activeUsers = {}; 
+
+// Filtro para que no vean a los que estan invisibles
+const getVisibleUsers = (arr) => {
+    return Object.values(arr.reduce((acc, u) => ({...acc, [u.username]: u}), {}))
+                 .filter(u => u.status !== 'Invisible');
+};
 
 io.on('connection', (socket) => {
     
@@ -18,9 +25,10 @@ io.on('connection', (socket) => {
         socket.join(userData.room);
         activeUsers[socket.id] = userData;
         
-        const getUniqueUsers = (arr) => Object.values(arr.reduce((acc, u) => ({...acc, [u.username]: u}), {}));
-        io.to(userData.room).emit('updateUserList', getUniqueUsers(Object.values(activeUsers).filter(u => u.room === userData.room && !u.room.includes('_'))));
-        io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers)));
+        // Mando la lista pero filtrando a los fantasmitas
+        const roomUsers = Object.values(activeUsers).filter(u => u.room === userData.room && !u.room.includes('_'));
+        io.to(userData.room).emit('updateUserList', getVisibleUsers(roomUsers));
+        io.emit('updateGlobalUsers', getVisibleUsers(Object.values(activeUsers)));
     });
 
     socket.on('chatMessageNotification', (data) => {
@@ -43,12 +51,12 @@ io.on('connection', (socket) => {
         const user = activeUsers[socket.id];
         if (user) {
             delete activeUsers[socket.id]; 
-            const getUniqueUsers = (arr) => Object.values(arr.reduce((acc, u) => ({...acc, [u.username]: u}), {}));
-            io.to(user.room).emit('updateUserList', getUniqueUsers(Object.values(activeUsers).filter(u => u.room === user.room && !u.room.includes('_'))));
-            io.emit('updateGlobalUsers', getUniqueUsers(Object.values(activeUsers)));
+            const roomUsers = Object.values(activeUsers).filter(u => u.room === user.room && !u.room.includes('_'));
+            io.to(user.room).emit('updateUserList', getVisibleUsers(roomUsers));
+            io.emit('updateGlobalUsers', getVisibleUsers(Object.values(activeUsers)));
         }
     });
 });
 
 const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => console.log(`Nani? Server corriendo en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
