@@ -167,6 +167,7 @@
             </div>
 
             <form id="chatForm" class="chat-form">
+                <button type="button" id="recordAudioBtn" class="btn-icon" title="Grabar nota de voz"><i class="fas fa-microphone"></i></button>
                 <button type="button" id="toggleUnifiedPickerBtn" class="btn-icon"><i class="fas fa-smile"></i></button>
                 <input type="file" id="fileInput" style="display: none;" accept="image/*, .pdf, .zip, .rar, .txt, .doc, .docx">
                 <label for="fileInput" class="btn-icon" style="cursor:pointer;"><i class="fas fa-paperclip"></i></label>
@@ -376,6 +377,18 @@
         </div>
         
         <button id="closeConfigBtn" class="btn-primary-outline" style="width: 100%; margin-top: 15px; border: none;">Cerrar Ajustes</button>
+    </div>
+</div>
+
+<div id="customConfirmModal" class="modal" style="z-index: 10005;">
+    <div class="modal-content" style="text-align: center; max-width: 340px; padding: 30px;">
+        <div style="margin-bottom: 20px; font-size: 3.5rem; color: var(--danger); animation: pulse 2s infinite;"><i class="fas fa-exclamation-triangle"></i></div>
+        <h3 style="color: var(--text-main); margin-bottom: 10px; font-size: 1.2rem;">Confirmación</h3>
+        <p id="confirmModalText" style="color: var(--text-muted); margin-bottom: 25px; font-size: 0.95rem; line-height: 1.5;"></p>
+        <div style="display: flex; gap: 12px;">
+            <button id="cancelConfirmBtn" class="btn-primary-outline" style="flex: 1; border-radius: 12px;">Cancelar</button>
+            <button id="acceptConfirmBtn" class="btn-danger" style="flex: 1; border-radius: 12px;">Aceptar</button>
+        </div>
     </div>
 </div>
 
