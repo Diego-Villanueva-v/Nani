@@ -33,7 +33,7 @@ let pendingSentRequests = [];
 let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
-let pendingConfirmCallback = null; // Variable para el modal estético
+let pendingConfirmCallback = null; 
 
 const killSplashScreen = () => {
     const splash = document.getElementById('splashScreen');
@@ -88,7 +88,6 @@ const fetchUserData = async (username) => {
     displayNameCache[username] = username;
 };
 
-// Se define TODA la lógica de la UI junta para evitar el error de carga
 window.ui = {
     showConfirm: (msg, callback) => {
         document.getElementById('confirmModalText').textContent = msg;
@@ -128,11 +127,8 @@ window.ui = {
     },
     applyBackground: (bgUrl) => {
         const cm = document.getElementById('chatMessages'); if(!cm) return;
-        if(!bgUrl || bgUrl === 'Nane.jpg' || bgUrl === '') { 
-            cm.style.cssText = ''; 
-        } else { 
-            cm.style.cssText = `background-image: url('${bgUrl}'); background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; background-attachment: fixed !important;`; 
-        }
+        const bgToApply = (bgUrl && bgUrl !== 'Nane.jpg' && bgUrl !== '') ? bgUrl : 'Nanichatbackground.jpg';
+        cm.style.cssText = `background-image: url('${bgToApply}'); background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; background-attachment: fixed !important;`;
     },
     switchView: (viewId, btnElement) => {
         document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active')); document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
@@ -225,6 +221,7 @@ document.addEventListener('click', (e) => {
         else if(action === 'removeFriend') { 
             window.ui.showConfirm(`¿Estás seguro de eliminar a ${escapeHTML(targetUser)}?`, () => {
                 myFriends = myFriends.filter(f => f !== targetUser); saveAppPrefs(); renderFriendsUI(); showToast(`Eliminaste a ${escapeHTML(targetUser)}.`, "success"); 
+                if(viewingProfile === targetUser) window.ui.openProfile(targetUser);
             });
         } 
         else if(action === 'chatOptions') { selectedChatToDelete = targetRoom; const ctxMenu = document.getElementById('chatContextMenu'); if(ctxMenu) { let x = e.pageX; let y = e.pageY; if(x + 160 > window.innerWidth) x -= 160; if(y + 100 > window.innerHeight) y -= 100; ctxMenu.style.left = `${x}px`; ctxMenu.style.top = `${y}px`; ctxMenu.classList.add('active'); } }
@@ -312,10 +309,10 @@ onAuthStateChanged(auth, async (user) => {
         const prefs = cloudData.preferences || {};
         myStickers = prefs.stickers || []; myFriends = cloudData.friends || []; myRequests = cloudData.friendRequests || []; myRooms = prefs.rooms || ['General']; mutedRooms = prefs.mutedRooms || [];
         userAge = cloudData.age || ''; userGender = cloudData.gender || ''; userBio = cloudData.bio || ''; 
-        userColor = prefs.color || '#d946ef'; userBubbleColor = prefs.bubbleColor || '#9333ea'; userBubbleOpacity = prefs.bubbleOpacity || '0.9'; userStatus = prefs.status || 'Conectado';
+        userColor = prefs.color || '#d946ef'; userBubbleColor = prefs.bubbleColor || '#9333ea'; userBubbleOpacity = prefs.bubbleOpacity || '0.9'; userStatus = prefs.status || 'Disponible';
         userAvatar = cloudData.avatar || prefs.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'; 
         
-        chatBg = prefs.bgLocal || localStorage.getItem('nani_bg') || ''; 
+        chatBg = prefs.bgLocal || localStorage.getItem('nani_bg') || 'Nanichatbackground.jpg'; 
         useVibration = prefs.vibration !== false; useNotifs = prefs.notifications !== false; useLightMode = prefs.lightMode !== undefined ? prefs.lightMode : (localStorage.getItem('nani_theme') === 'light');
         
         onSnapshot(collection(db, "salas"), (snapshot) => {
@@ -409,7 +406,7 @@ safeAddListener('menuClearChatLocal', 'click', () => { document.getElementById('
 
 let tempBgData = null;
 safeAddListener('menuChangeBg', 'click', () => { document.getElementById('chatMenuDropdown').classList.remove('show'); document.getElementById('bgLocalInputChat').click(); });
-safeAddListener('menuResetBg', 'click', () => { document.getElementById('chatMenuDropdown').classList.remove('show'); chatBg = ''; window.ui.applyBackground(chatBg); saveAppPrefs(); showToast("Fondo quitado."); });
+safeAddListener('menuResetBg', 'click', () => { document.getElementById('chatMenuDropdown').classList.remove('show'); chatBg = 'Nanichatbackground.jpg'; window.ui.applyBackground(chatBg); saveAppPrefs(); showToast("Fondo restablecido al por defecto."); });
 safeAddListener('bgLocalInputChat', 'change', (e) => { const file = e.target.files[0]; if(file) { const r = new FileReader(); r.readAsDataURL(file); r.onload = (ev) => { tempBgData = ev.target.result; document.getElementById('bgPreviewContainer').style.backgroundImage = `url('${tempBgData}')`; document.getElementById('bgPreviewModal').classList.add('active'); }; } });
 safeAddListener('cancelBgBtn', 'click', () => { document.getElementById('bgPreviewModal').classList.remove('active'); tempBgData = null; });
 safeAddListener('applyBgBtn', 'click', () => { if(tempBgData) { chatBg = tempBgData; window.ui.applyBackground(chatBg); saveAppPrefs(); showToast("Fondo Aplicado."); } document.getElementById('bgPreviewModal').classList.remove('active'); });
@@ -540,13 +537,19 @@ const showProfileModal = (data) => {
         
         document.getElementById('dProfileUid').textContent = `@${escapeHTML(data.username)}`;
         
-        let sColor = '#22c55e', sText = 'Conectado'; 
+        let sColor = '#22c55e', sText = 'Disponible'; 
         if(data.status === 'Ausente') { sColor = '#eab308'; sText = 'Ausente'; } 
         else if(data.status === 'Ocupado') { sColor = '#d946ef'; sText = 'Ocupado'; } 
-        else if(data.status === 'Desconectado' || data.status === 'Invisible') { sColor = '#64748b'; sText = 'Desconectado'; }
+        else if(data.status === 'Desconectado' || data.status === 'Invisible' || data.status === 'Conectado') { sColor = '#64748b'; sText = 'Desconectado'; }
         
-        const sd = document.querySelector('#dProfileStatusBadge .status-dot'); if(sd) sd.style.background = sColor; 
-        const st = document.querySelector('#dProfileStatusBadge .status-text'); if(st) st.textContent = sText;
+        const badge = document.getElementById('dProfileStatusBadge');
+        if (sText === 'Desconectado' || data.status === 'Invisible') {
+            if(badge) badge.style.display = 'none';
+        } else {
+            if(badge) badge.style.display = 'inline-flex';
+            const sd = document.querySelector('#dProfileStatusBadge .status-dot'); if(sd) sd.style.background = sColor; 
+            const st = document.querySelector('#dProfileStatusBadge .status-text'); if(st) st.textContent = sText;
+        }
         
         const elBio = document.getElementById('dProfileBio'); if(elBio) elBio.textContent = data.bio ? escapeHTML(data.bio) : 'Sin biografía.';
         document.getElementById('dProfileAvatar').src = data.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'; 
@@ -556,7 +559,21 @@ const showProfileModal = (data) => {
         if(data.username === currentUsername) { if(dBtn) dBtn.style.display = 'none'; if(aBtn) aBtn.style.display = 'none'; if(editBtn) editBtn.style.display = 'inline-block'; } 
         else {
             if(dBtn) { dBtn.style.display = 'block'; dBtn.setAttribute('data-dm-create', escapeHTML(data.username)); }
-            if(aBtn) { aBtn.style.display = 'block'; if(myFriends.includes(data.username)) { aBtn.innerHTML = '<i class="fas fa-user-check"></i> Amigo'; aBtn.disabled = true; } else if(pendingSentRequests.includes(data.username)) { aBtn.innerHTML = '<i class="fas fa-times"></i> Cancelar Solicitud'; aBtn.disabled = false; aBtn.setAttribute('data-action', 'cancelFriendReq'); aBtn.setAttribute('data-user', escapeHTML(data.username)); aBtn.classList.replace('btn-primary', 'btn-danger-outline'); } else { aBtn.innerHTML = '<i class="fas fa-user-plus"></i> Añadir'; aBtn.disabled = false; aBtn.setAttribute('data-action', 'sendFriendReq'); aBtn.setAttribute('data-user', escapeHTML(data.username)); aBtn.classList.replace('btn-danger-outline', 'btn-primary'); } }
+            if(aBtn) { 
+                aBtn.style.display = 'block'; 
+                if(myFriends.includes(data.username)) { 
+                    aBtn.innerHTML = '<i class="fas fa-user-times"></i> Eliminar Amigo'; 
+                    aBtn.disabled = false; 
+                    aBtn.setAttribute('data-action', 'removeFriend'); 
+                    aBtn.setAttribute('data-user', escapeHTML(data.username)); 
+                    aBtn.className = 'btn-danger-outline';
+                    aBtn.style.flex = '1';
+                } else if(pendingSentRequests.includes(data.username)) { 
+                    aBtn.innerHTML = '<i class="fas fa-times"></i> Cancelar Solicitud'; aBtn.disabled = false; aBtn.setAttribute('data-action', 'cancelFriendReq'); aBtn.setAttribute('data-user', escapeHTML(data.username)); aBtn.className = 'btn-danger-outline'; aBtn.style.flex = '1';
+                } else { 
+                    aBtn.innerHTML = '<i class="fas fa-user-plus"></i> Añadir'; aBtn.disabled = false; aBtn.setAttribute('data-action', 'sendFriendReq'); aBtn.setAttribute('data-user', escapeHTML(data.username)); aBtn.className = 'btn-primary'; aBtn.style.flex = '1';
+                } 
+            }
             if(editBtn) editBtn.style.display = 'none';
         }
         
