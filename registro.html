@@ -14,7 +14,7 @@
 <div class="registro-container">
     <div class="brand-header">
         <img src="Nani_logo.png" class="nani-logo-img" style="margin-bottom: 10px; animation: none;" alt="Nani Logo">
-        <p>Crea tu cuenta y sé parte de Nani?</p>
+        <p>Crea tu cuenta y sé parte de Nani</p>
     </div>
 
     <form id="registroForm">
@@ -41,6 +41,16 @@
             <div class="input-wrapper">
                 <i class="fas fa-lock input-icon"></i>
                 <input type="password" id="password" placeholder="Mínimo 6 caracteres" required>
+                <i class="fas fa-eye toggle-password" title="Mostrar/Ocultar"></i>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Confirmar Contraseña</label>
+            <div class="input-wrapper">
+                <i class="fas fa-check-circle input-icon"></i>
+                <input type="password" id="confirmPassword" placeholder="Repite tu contraseña" required>
+                <i class="fas fa-eye toggle-password" title="Mostrar/Ocultar"></i>
             </div>
             <small id="passwordError" class="error-message"></small>
         </div>

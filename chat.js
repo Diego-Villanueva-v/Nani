@@ -26,7 +26,8 @@ let currentRoom = 'Lobby', currentRoomsData = [];
 let replyingTo = null, viewingProfile = null, selectedMsgContext = null;
 let selectedChatToDelete = null, unsubMessages = null;
 
-let userAge, userGender, userColor, userBubbleColor, userBubbleOpacity, userStatus, userAvatar, chatBg, userBio, useVibration, useNotifs, useLightMode;
+let userAge, userDob, userGender, userCountry, userColor, userBubbleColor, userBubbleOpacity, userStatus, userAvatar, chatBg, userBio;
+let useVibration, useNotifs, useLightMode, prefShowLoc, prefShowAge, prefReadReceipts;
 let myStickers = [], myFriends = [], myRequests = [], myRooms = [], mutedRooms = [];
 let pendingSentRequests = [];
 
@@ -34,6 +35,14 @@ let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 let pendingConfirmCallback = null; 
+
+window.activeOnlineUsers = []; // ARRAY GLOBAL PARA SABER QUIEN ESTÁ ONLINE REALMENTE
+
+// DECLARACION GLOBAL IMPORTANTE PARA STRICT MODE (Evita que se trabe el onboarding)
+let tempAge = null;
+let tempDob = null;
+let tempGender = '';
+let tempCountry = 'Chile';
 
 const killSplashScreen = () => {
     const splash = document.getElementById('splashScreen');
@@ -59,7 +68,7 @@ const updateBadges = () => {
 const avatarCache = {}; 
 const displayNameCache = {}; 
 
-const escapeHTML = (str) => { if(typeof str !== 'string') return ''; return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); };
+const escapeHTML = (str) => { if(str == null) return ''; str = String(str); return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); };
 const showToast = (msg, type = 'success') => { const toast = document.getElementById('toastNotification'); if(toast) { toast.textContent = msg; toast.className = `toast show ${type}`; setTimeout(() => { toast.classList.remove('show'); }, 3000); } };
 const hexToRgba = (hex, op) => { let r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${op})`; };
 const vibrate = (ms) => { if(useVibration && navigator.vibrate) navigator.vibrate(ms); };
@@ -108,7 +117,11 @@ window.ui = {
                 status: data.preferences?.status || 'Desconectado',
                 avatar: data.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
                 color: data.preferences?.color || '#d946ef', 
-                bio: data.bio || '', 
+                bio: data.bio || '',
+                age: data.age || '',
+                gender: data.gender || '',
+                country: data.country || '',
+                preferences: data.preferences || {},
                 comments: comments
             });
         }
@@ -210,6 +223,71 @@ safeAddListener('acceptConfirmBtn', 'click', () => {
     pendingConfirmCallback = null;
 });
 
+// Custom Status Dropdown Logic - CORREGIDO PARA QUE SE CIERRE AL HACER CLIC
+safeAddListener('customStatusTrigger', 'click', () => {
+    document.getElementById('customStatusOptions').classList.toggle('show');
+});
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#customStatusTrigger')) {
+        const opts = document.getElementById('customStatusOptions');
+        if (opts) opts.classList.remove('show');
+    }
+});
+document.querySelectorAll('#customStatusOptions div').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+        e.stopPropagation(); // EVITA QUE EL CLIC REBOTE Y VUELVA A ABRIR EL MENU
+        userStatus = e.target.dataset.value;
+        document.getElementById('customStatusSelectedText').innerHTML = e.target.innerHTML;
+        document.getElementById('customStatusOptions').classList.remove('show');
+    });
+});
+
+// Fullscreen Country Select Logic - CON BANDERAS MEJORADAS
+const countryData = [
+    {n: "Afghanistan", f: "🇦🇫"}, {n: "Albania", f: "🇦🇱"}, {n: "Algeria", f: "🇩🇿"},
+    {n: "Andorra", f: "🇦🇩"}, {n: "Angola", f: "🇦🇴"}, {n: "Antigua and Barbuda", f: "🇦🇬"},
+    {n: "Argentina", f: "🇦🇷"}, {n: "Armenia", f: "🇦🇲"}, {n: "Australia", f: "🇦🇺"},
+    {n: "Austria", f: "🇦🇹"}, {n: "Azerbaijan", f: "🇦🇿"}, {n: "Bahamas", f: "🇧🇸"},
+    {n: "Bahrain", f: "🇧🇭"}, {n: "Bangladesh", f: "🇧🇩"}, {n: "Barbados", f: "🇧🇧"},
+    {n: "Belarus", f: "🇧🇾"}, {n: "Belgium", f: "🇧🇪"}, {n: "Belize", f: "🇧🇿"},
+    {n: "Bolivia", f: "🇧🇴"}, {n: "Brazil", f: "🇧🇷"}, {n: "Canada", f: "🇨🇦"},
+    {n: "Chile", f: "🇨🇱"}, {n: "China", f: "🇨🇳"}, {n: "Colombia", f: "🇨🇴"},
+    {n: "Costa Rica", f: "🇨🇷"}, {n: "Cuba", f: "🇨🇺"}, {n: "Dominican Republic", f: "🇩🇴"},
+    {n: "Ecuador", f: "🇪🇨"}, {n: "El Salvador", f: "🇸🇻"}, {n: "France", f: "🇫🇷"},
+    {n: "Germany", f: "🇩🇪"}, {n: "Guatemala", f: "🇬🇹"}, {n: "Honduras", f: "🇭🇳"},
+    {n: "India", f: "🇮🇳"}, {n: "Italy", f: "🇮🇹"}, {n: "Japan", f: "🇯🇵"},
+    {n: "Mexico", f: "🇲🇽"}, {n: "Nicaragua", f: "🇳🇮"}, {n: "Panama", f: "🇵🇦"},
+    {n: "Paraguay", f: "🇵🇾"}, {n: "Peru", f: "🇵🇪"}, {n: "Puerto Rico", f: "🇵🇷"},
+    {n: "Spain", f: "🇪🇸"}, {n: "United Kingdom", f: "🇬🇧"}, {n: "United States", f: "🇺🇸"},
+    {n: "Uruguay", f: "🇺🇾"}, {n: "Venezuela", f: "🇻🇪"}
+];
+
+const populateCountries = (filter = "") => {
+    const ul = document.getElementById('countryListUl');
+    ul.innerHTML = "";
+    countryData.filter(c => c.n.toLowerCase().includes(filter.toLowerCase())).forEach(c => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${c.f}</span> <span>${c.n}</span>`;
+        li.onclick = () => {
+            tempCountry = c.n;
+            document.getElementById('selectedCountryText').innerText = `${c.f} ${c.n}`;
+            document.getElementById('countryListModal').classList.remove('active');
+        };
+        ul.appendChild(li);
+    });
+};
+safeAddListener('countryTriggerBtn', 'click', () => {
+    document.getElementById('countryListModal').classList.add('active');
+    populateCountries();
+});
+safeAddListener('closeCountryList', 'click', () => {
+    document.getElementById('countryListModal').classList.remove('active');
+});
+safeAddListener('countrySearchInput', 'input', (e) => {
+    populateCountries(e.target.value);
+});
+
+
 document.addEventListener('click', (e) => {
     const actionTarget = e.target.closest('[data-action]');
     if (actionTarget) {
@@ -238,14 +316,75 @@ document.addEventListener('click', (e) => {
     if (tabTarget) { const container = tabTarget.closest('.friends-container') || tabTarget.closest('.unified-picker'); if(container) { container.querySelectorAll('.f-tab, .picker-tab').forEach(t => t.classList.remove('active')); container.querySelectorAll('.f-list, .picker-content').forEach(l => l.classList.remove('active')); tabTarget.classList.add('active'); const tgtEl = document.getElementById(tabTarget.dataset.target); if(tgtEl) tgtEl.classList.add('active'); } return; }
     const dmCreateTarget = e.target.closest('[data-dm-create]'); if(dmCreateTarget && viewingProfile) { document.getElementById('discordProfileModal').classList.remove('active'); window.ui.openDMRoom(viewingProfile); return; }
     
-    if(e.target.id === 'nextOnboardBtn') { const age = document.getElementById('onboardAge').value; if(age >= 13) { document.getElementById('onboardStep1').classList.remove('active'); document.getElementById('onboardStep2').classList.add('active'); } else showToast("Debes ser mayor de 13 años.", 'error'); return; }
-    if(e.target.id === 'backOnboardBtn') { document.getElementById('onboardStep2').classList.remove('active'); document.getElementById('onboardStep1').classList.add('active'); return; }
-    const genderBtn = e.target.closest('.gender-btn'); if (genderBtn) { document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active')); genderBtn.classList.add('active'); tempGender = genderBtn.dataset.gender; return; }
+    // ONBOARDING LOGIC
+    if(e.target.id === 'nextOnboardBtn') { 
+        if(!document.getElementById('nextOnboardBtn').disabled) {
+            document.getElementById('onboardStep1').classList.remove('active'); 
+            document.getElementById('onboardStep2').classList.add('active'); 
+        }
+        return; 
+    }
+    if(e.target.id === 'nextOnboardBtn2') { 
+        if(tempGender !== '') { 
+            document.getElementById('onboardStep2').classList.remove('active'); 
+            document.getElementById('onboardStep3').classList.add('active'); 
+        } else showToast("Selecciona tu género.", 'error'); 
+        return; 
+    }
+    const genderBtn = e.target.closest('.gender-card-modern'); 
+    if (genderBtn) { 
+        document.querySelectorAll('.gender-card-modern').forEach(b => b.classList.remove('active')); 
+        genderBtn.classList.add('active'); 
+        tempGender = genderBtn.getAttribute('data-gender'); 
+        return; 
+    }
+    
     if(e.target.id === 'finishOnboardBtn') {
-        const age = document.getElementById('onboardAge').value;
-        if(age && tempGender) {
-            setDoc(doc(db, "usuarios", currentUserUid), { age: age, gender: tempGender }, { merge: true }).then(()=>{ userAge = age; userGender = tempGender; document.getElementById('onboardingModal').classList.remove('active'); socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, status: userStatus }); showToast("Perfil completado."); }).catch(()=> showToast("Error al guardar.", 'error'));
-        } else showToast("Selecciona tu género.", 'error'); return;
+        if(tempAge && tempGender !== '' && tempCountry) {
+            setDoc(doc(db, "usuarios", currentUserUid), { age: tempAge, dob: tempDob, gender: tempGender, country: tempCountry }, { merge: true }).then(()=>{ 
+                userAge = tempAge; userDob = tempDob; userGender = tempGender; userCountry = tempCountry; 
+                document.getElementById('onboardingModal').classList.remove('active'); 
+                socket.emit('joinRoom', { uid: currentUserUid, username: currentUsername, email: currentUserEmail, room: currentRoom, status: userStatus }); 
+                showToast("¡Perfil guardado con éxito!"); 
+            }).catch(()=> showToast("Falla de sincronización. Inténtalo de nuevo.", 'error'));
+        } else showToast("Verifica que no queden datos pendientes.", 'error'); 
+        return;
+    }
+});
+
+safeAddListener('onboardDob', 'input', (e) => {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length > 8) v = v.substring(0, 8);
+    let formatted = v;
+    if (v.length >= 5) {
+        formatted = `${v.slice(0,2)} / ${v.slice(2,4)} / ${v.slice(4,8)}`;
+    } else if (v.length >= 3) {
+        formatted = `${v.slice(0,2)} / ${v.slice(2,4)}`;
+    }
+    e.target.value = formatted;
+
+    if (v.length === 8) {
+        const parts = [v.slice(0,2), v.slice(2,4), v.slice(4,8)];
+        const dob = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        const ageDifMs = Date.now() - dob.getTime();
+        const ageDate = new Date(ageDifMs); 
+        const calcAge = Math.abs(ageDate.getUTCFullYear() - 1970);
+        
+        if (calcAge >= 13 && calcAge < 120) {
+            document.getElementById('ageCalcText').textContent = `Tienes ${calcAge} años. No podrás cambiar esto más tarde.`;
+            document.getElementById('nextOnboardBtn').disabled = false;
+            document.getElementById('nextOnboardBtn').classList.add('ready');
+            tempAge = calcAge;
+            tempDob = e.target.value;
+        } else {
+            document.getElementById('ageCalcText').textContent = 'Se requiere una edad mínima de 13 años.';
+            document.getElementById('nextOnboardBtn').disabled = true;
+            document.getElementById('nextOnboardBtn').classList.remove('ready');
+        }
+    } else {
+        document.getElementById('ageCalcText').textContent = '';
+        document.getElementById('nextOnboardBtn').disabled = true;
+        document.getElementById('nextOnboardBtn').classList.remove('ready');
     }
 });
 
@@ -296,7 +435,6 @@ safeAddListener('recordAudioBtn', 'click', async () => {
     }
 });
 
-let tempGender = '';
 onAuthStateChanged(auth, async (user) => {
     if (!user) { killSplashScreen(); window.location.replace('index.html'); return; }
     try {
@@ -308,12 +446,13 @@ onAuthStateChanged(auth, async (user) => {
         
         const prefs = cloudData.preferences || {};
         myStickers = prefs.stickers || []; myFriends = cloudData.friends || []; myRequests = cloudData.friendRequests || []; myRooms = prefs.rooms || ['General']; mutedRooms = prefs.mutedRooms || [];
-        userAge = cloudData.age || ''; userGender = cloudData.gender || ''; userBio = cloudData.bio || ''; 
+        userAge = cloudData.age || ''; userGender = cloudData.gender || ''; userCountry = cloudData.country || ''; userBio = cloudData.bio || ''; 
         userColor = prefs.color || '#d946ef'; userBubbleColor = prefs.bubbleColor || '#9333ea'; userBubbleOpacity = prefs.bubbleOpacity || '0.9'; userStatus = prefs.status || 'Disponible';
         userAvatar = cloudData.avatar || prefs.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'; 
         
         chatBg = prefs.bgLocal || localStorage.getItem('nani_bg') || 'Nanichatbackground.jpg'; 
         useVibration = prefs.vibration !== false; useNotifs = prefs.notifications !== false; useLightMode = prefs.lightMode !== undefined ? prefs.lightMode : (localStorage.getItem('nani_theme') === 'light');
+        prefShowLoc = prefs.showLocation !== false; prefShowAge = prefs.showAge !== false; prefReadReceipts = prefs.readReceipts !== false;
         
         onSnapshot(collection(db, "salas"), (snapshot) => {
             currentRoomsData = [];
@@ -327,9 +466,18 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 function initApp() {
-    if (!userAge || !userGender) { document.getElementById('onboardingModal').classList.add('active'); document.getElementById('onboardStep1').classList.add('active'); document.getElementById('onboardStep2').classList.remove('active'); }
+    if (!userAge || !userGender || !userCountry) { 
+        document.getElementById('onboardingModal').classList.add('active'); 
+    }
     window.ui.applyTheme(useLightMode);
-    const tt = document.getElementById('themeToggle'); if(tt) tt.checked = useLightMode; const vt = document.getElementById('vibToggle'); if(vt) vt.checked = useVibration; const nt = document.getElementById('notifToggle'); if(nt) nt.checked = useNotifs;
+    
+    const tt = document.getElementById('themeToggle'); if(tt) tt.checked = useLightMode; 
+    const vt = document.getElementById('vibToggle'); if(vt) vt.checked = useVibration; 
+    const nt = document.getElementById('notifToggle'); if(nt) nt.checked = useNotifs;
+    const locT = document.getElementById('showLocToggle'); if(locT) locT.checked = prefShowLoc;
+    const ageT = document.getElementById('showAgeToggle'); if(ageT) ageT.checked = prefShowAge;
+    const rrT = document.getElementById('readReceiptsToggle'); if(rrT) rrT.checked = prefReadReceipts;
+
     if (chatBg) window.ui.applyBackground(chatBg); updateBadges();
     
     if(isSuperAdmin) {
@@ -353,7 +501,7 @@ const saveAppPrefs = async () => {
         localStorage.setItem('nani_bg', chatBg); 
         await setDoc(doc(db, "usuarios", currentUserUid), { 
             avatar: userAvatar, bio: userBio, displayName: currentDisplayName, friendRequests: myRequests, friends: myFriends, 
-            preferences: { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, bgLocal: chatBg, rooms: myRooms, mutedRooms: mutedRooms, stickers: myStickers, vibration: useVibration, notifications: useNotifs, lightMode: useLightMode } 
+            preferences: { color: userColor, bubbleColor: userBubbleColor, bubbleOpacity: userBubbleOpacity, status: userStatus, bgLocal: chatBg, rooms: myRooms, mutedRooms: mutedRooms, stickers: myStickers, vibration: useVibration, notifications: useNotifs, lightMode: useLightMode, showLocation: prefShowLoc, showAge: prefShowAge, readReceipts: prefReadReceipts } 
         }, { merge: true }); 
     } catch(e) {}
 };
@@ -460,10 +608,24 @@ const updateRoomProfileModal = (rd) => {
     try {
         const rt = document.getElementById('roomTitle'); if(rt && !currentRoom.includes('_')) rt.innerHTML = escapeHTML(rd.name);
         const rc = document.getElementById('roomCreator'); if(rc && !currentRoom.includes('_')) rc.textContent = `por ${escapeHTML(rd.creator)}`;
-        const canEdit = (rd.uid === currentUserUid || isSuperAdmin); const brs = document.getElementById('btnRoomSettings'); if(brs) brs.style.display = canEdit ? 'block' : 'none';
-        document.getElementById('rProfileAvatar').src = rd.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'; document.getElementById('rProfileName').textContent = escapeHTML(rd.name); document.getElementById('rProfileCreator').textContent = `Creador: ${escapeHTML(rd.creator)}`; document.getElementById('rProfileDesc').textContent = rd.description ? escapeHTML(rd.description) : "Una sala para conversar de todo un poco.";
+        const canEdit = (rd.uid === currentUserUid || rd.uid === '000000' && isSuperAdmin || isSuperAdmin); 
+        const brs = document.getElementById('btnRoomSettings'); if(brs) brs.style.display = canEdit ? 'block' : 'none';
+        
+        document.getElementById('rProfileAvatar').src = rd.avatar || 'https://cdn-icons-png.flaticon.com/512/1370/1370907.png'; 
+        document.getElementById('rProfileName').textContent = escapeHTML(rd.name); 
+        document.getElementById('rProfileCreator').textContent = `Creador: ${escapeHTML(rd.creator)}`; 
+        document.getElementById('rProfileDesc').textContent = rd.description ? escapeHTML(rd.description) : "Una sala para conversar de todo un poco.";
         const mt = document.getElementById('muteRoomToggle'); if(mt) mt.checked = mutedRooms.includes(rd.name);
-        const editSec = document.getElementById('rProfileEditSection'); if (canEdit) { editSec.style.display = 'block'; document.getElementById('rEditName').value = escapeHTML(rd.name); document.getElementById('rEditDesc').value = rd.description ? escapeHTML(rd.description) : ""; tempRoomAvatar = rd.avatar; } else { editSec.style.display = 'none'; }
+        
+        const editSec = document.getElementById('rProfileEditSection'); 
+        if (canEdit) { 
+            editSec.style.display = 'block'; 
+            document.getElementById('rEditName').value = escapeHTML(rd.name); 
+            document.getElementById('rEditDesc').value = rd.description ? escapeHTML(rd.description) : ""; 
+            tempRoomAvatar = rd.avatar; 
+        } else { 
+            editSec.style.display = 'none'; 
+        }
     } catch(err) {}
 };
 
@@ -498,6 +660,10 @@ safeAddListener('vibToggle', 'change', (e) => { useVibration = e.target.checked;
 safeAddListener('notifToggle', 'change', (e) => { useNotifs = e.target.checked; saveAppPrefs(); });
 safeAddListener('bubbleOpacity', 'input', (e) => { vibrate(15); });
 
+safeAddListener('showLocToggle', 'change', (e) => { prefShowLoc = e.target.checked; saveAppPrefs(); });
+safeAddListener('showAgeToggle', 'change', (e) => { prefShowAge = e.target.checked; saveAppPrefs(); });
+safeAddListener('readReceiptsToggle', 'change', (e) => { prefReadReceipts = e.target.checked; saveAppPrefs(); });
+
 safeAddListener('editProfileToggleBtn', 'click', () => { 
     const editSec = document.getElementById('dProfileEditSection'); 
     editSec.style.display = editSec.style.display === 'none' ? 'block' : 'none'; 
@@ -506,7 +672,6 @@ safeAddListener('editProfileToggleBtn', 'click', () => {
     document.getElementById('colorPicker').value = userColor; 
     document.getElementById('bubbleColorPicker').value = userBubbleColor; 
     document.getElementById('bubbleOpacity').value = userBubbleOpacity; 
-    document.getElementById('statusSelect').value = userStatus; 
 });
 
 safeAddListener('avatarInput', 'change', (e) => { if(e.target.files[0]) compressAvatar(e.target.files[0], (b64) => { document.getElementById('dProfileAvatar').src = b64; userAvatar = b64; }); });
@@ -516,7 +681,6 @@ safeAddListener('saveProfileBtn', 'click', async () => {
     userColor = document.getElementById('colorPicker').value; 
     userBubbleColor = document.getElementById('bubbleColorPicker').value; 
     userBubbleOpacity = document.getElementById('bubbleOpacity').value; 
-    userStatus = document.getElementById('statusSelect').value; 
     userBio = escapeHTML(document.getElementById('bioInput').value.trim()); 
     currentDisplayName = escapeHTML(document.getElementById('displayNameInput').value.trim()) || currentUsername;
 
@@ -529,18 +693,24 @@ safeAddListener('saveProfileBtn', 'click', async () => {
     } catch(e) { showToast("Error al guardar", 'error'); btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
 });
 
+// LOGICA DE ESTADOS ACTUALIZADA: REVISA SI ESTA ONLINE REALMENTE
 const showProfileModal = (data) => {
     try {
         avatarCache[data.username] = data.avatar; 
         document.getElementById('dProfileName').textContent = escapeHTML(data.displayName); 
         document.getElementById('dProfileName').style.color = data.color || '#fff';
-        
         document.getElementById('dProfileUid').textContent = `@${escapeHTML(data.username)}`;
         
-        let sColor = '#22c55e', sText = 'Disponible'; 
-        if(data.status === 'Ausente') { sColor = '#eab308'; sText = 'Ausente'; } 
-        else if(data.status === 'Ocupado') { sColor = '#d946ef'; sText = 'Ocupado'; } 
-        else if(data.status === 'Desconectado' || data.status === 'Invisible' || data.status === 'Conectado') { sColor = '#64748b'; sText = 'Desconectado'; }
+        const isActuallyOnline = window.activeOnlineUsers && window.activeOnlineUsers.includes(data.username);
+        let sColor = '#22c55e', sText = 'Disponible', sIcon = '🟢'; 
+        
+        if (!isActuallyOnline) {
+            sColor = '#64748b'; sText = 'Desconectado'; sIcon = '👻';
+        } else {
+            if(data.status === 'Ausente') { sColor = '#eab308'; sText = 'Ausente'; sIcon = '🌙';} 
+            else if(data.status === 'Ocupado') { sColor = '#d946ef'; sText = 'Ocupado'; sIcon = '🔴';} 
+            else if(data.status === 'Invisible') { sColor = '#64748b'; sText = 'Desconectado'; sIcon = '👻';}
+        }
         
         const badge = document.getElementById('dProfileStatusBadge');
         if (sText === 'Desconectado' || data.status === 'Invisible') {
@@ -549,6 +719,19 @@ const showProfileModal = (data) => {
             if(badge) badge.style.display = 'inline-flex';
             const sd = document.querySelector('#dProfileStatusBadge .status-dot'); if(sd) sd.style.background = sColor; 
             const st = document.querySelector('#dProfileStatusBadge .status-text'); if(st) st.textContent = sText;
+        }
+
+        if(data.username === currentUsername) {
+            document.getElementById('customStatusSelectedText').innerHTML = `${sIcon} ${sText !== 'Desconectado' ? sText : 'Invisible'}`;
+        }
+
+        const demogContainer = document.getElementById('dProfileDemographics');
+        if (demogContainer) {
+            demogContainer.innerHTML = '';
+            // FIX EDAD: Convertir a String para que escapeHTML no lo borre
+            if (data.age && data.preferences?.showAge !== false) demogContainer.innerHTML += `<span class="profile-details-badge"><i class="fas fa-birthday-cake"></i> ${escapeHTML(String(data.age))} años</span>`;
+            if (data.gender) demogContainer.innerHTML += `<span class="profile-details-badge"><i class="fas fa-venus-mars"></i> ${escapeHTML(String(data.gender))}</span>`;
+            if (data.country && data.preferences?.showLocation !== false) demogContainer.innerHTML += `<span class="profile-details-badge"><i class="fas fa-map-marker-alt"></i> ${escapeHTML(String(data.country))}</span>`;
         }
         
         const elBio = document.getElementById('dProfileBio'); if(elBio) elBio.textContent = data.bio ? escapeHTML(data.bio) : 'Sin biografía.';
@@ -660,6 +843,7 @@ socket.on('updateUserList', (users) => {
 });
 
 socket.on('updateGlobalUsers', (users) => { 
+    window.activeOnlineUsers = users.map(u => u.username); // ACTUALIZA LA LISTA GLOBAL EN VIVO
     users.forEach(u => fetchUserData(u.username)); 
     renderFriendsUI(); 
     const gl = document.getElementById('globalLobbyUsersList'); 
@@ -673,15 +857,27 @@ const up = document.getElementById('unifiedPicker');
 safeAddListener('toggleUnifiedPickerBtn', 'click', () => { if(up) up.classList.toggle('active'); if(up && up.classList.contains('active')) updateStickerMenu(); });
 safeAddListener('closeUnifiedPickerBtn', 'click', () => { if(up) up.classList.remove('active'); });
 
-const updateStickerMenu = () => { const sr = document.getElementById('stickerResults'); if(sr) sr.innerHTML = myStickers.map(url => `<img src="${url}" onclick="window.sendSticker('${url}')">`).join('') || '<p style="grid-column:span 2; text-align:center; color:var(--text-muted); font-size:0.8rem;">Sin stickers guardados.</p>'; };
+const updateStickerMenu = () => { const sr = document.getElementById('stickerResults'); if(sr) sr.innerHTML = myStickers.map(url => `<img src="${url}" class="compact-media" onclick="window.sendSticker('${url}')">`).join('') || '<p style="grid-column:span 2; text-align:center; color:var(--text-muted); font-size:0.8rem;">Sin stickers guardados.</p>'; };
 window.sendSticker = (url) => { enviarMensaje(url, 'image'); if(up) up.classList.remove('active'); };
 
-const emojis = ['😀','😂','🥺','😎','😍','👍','❤️','🔥','🎉','✨','😭','🙏','😅','🤔','🥰','👽','👻','🤖','💩','💀','💅','💃','👀','🧠','👅','🚀','🛸','🎨','🎮','🏆','🍕','🍔','🍟','☕','🍷','⚽','🏀','🎸','💡','💯','💜','✨','💀'];
+const emojiCategories = {
+    "😀 Emociones": ['😀','😃','😄','😁','😆','😅','😂','🤣','🥲','☺️','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾'],
+    "🖐️ Personas": ['👋','🤚','🖐','✋','🖖','👌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🦷','👀','👁','👅','👄','💋','🩸'],
+    "🐻 Animales": ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷','🕸','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈','🐓','🦃','🦚','🦜','🦢','🦩','🕊','🐇','🦝','🦨','🦡','🦦','🦥','🐁','🐀','🐿','🦔','🐉','🐲'],
+    "🍔 Comida": ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶','🌽','🥕','🧄','🧅','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🦴','🌭','🍔','🍟','🍕','🥪','🥙','🧆','🌮','🌯','🥗','🥘','🥫','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥠','🥮','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🧃','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉','🍾','🧊'],
+    "⚽ Deportes": ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛷','⛸','🥌','🎿','⛷','🏂','🪂','🏋️‍♀️','🏋️','🤺','🤼‍♀️','🤼','🤸‍♀️','🤸','⛹️‍♀️','⛹️','🤺','🤾‍♀️','🤾','🏌️‍♀️','🏌️','🏇','🧘‍♀️','🧘','🏄‍♀️','🏄','🏊‍♀️','🏊','🤽‍♀️','🤽','🚣‍♀️','🚣','🧗‍♀️','🧗','🚵‍♀️','🚵','🚴‍♀️','🚴','🏆','🥇','🥈','🥉','🏅','🎖','🏵','🎗','🎫','🎟','🎪','🤹','🎭','🩰','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🪕','🎻','🎲','♟','🎯','🎳','🎮','🎰','🧩']
+};
+
 const emc = document.getElementById('emojiPickerContent');
 if(emc) emc.addEventListener('click', (e) => { if(e.target.tagName === 'SPAN') { const mi = document.getElementById('messageInput'); if(mi) mi.value += e.target.innerText; } });
-if(emc) emc.innerHTML = emojis.map(e => `<span>${e}</span>`).join('');
+if(emc) {
+    emc.innerHTML = Object.keys(emojiCategories).map(cat => `
+        <div class="emoji-category-title" style="grid-column: 1 / -1; font-size: 0.8rem; color: var(--text-muted); padding: 5px 0; margin-top: 10px; border-bottom: 1px solid var(--border); font-weight: 600;">${cat}</div>
+        ${emojiCategories[cat].map(e => `<span>${e}</span>`).join('')}
+    `).join('');
+}
 
-safeAddListener('doGifSearchBtn', 'click', async () => { const term = escapeHTML(document.getElementById('gifSearch').value.trim()); if(!term) return; const res = document.getElementById('gifResults'); res.innerHTML = '<p>Buscando...</p>'; try { const req = await fetch(`https://g.tenor.com/v1/search?q=${term}&key=LIVDSRZULELA&limit=12`); const d = await req.json(); res.innerHTML = d.results.length === 0 ? '<p>Sin resultados.</p>' : ''; d.results.forEach(g => { const img = document.createElement('img'); img.src = g.media[0].tinygif.url; img.onclick = () => { enviarMensaje(g.media[0].gif.url, 'image'); up.classList.remove('active'); document.getElementById('gifSearch').value='';}; res.appendChild(img); }); } catch(e) { res.innerHTML = '<p>Error.</p>'; } });
+safeAddListener('doGifSearchBtn', 'click', async () => { const term = escapeHTML(document.getElementById('gifSearch').value.trim()); if(!term) return; const res = document.getElementById('gifResults'); res.innerHTML = '<p>Buscando...</p>'; try { const req = await fetch(`https://g.tenor.com/v1/search?q=${term}&key=LIVDSRZULELA&limit=12`); const d = await req.json(); res.innerHTML = d.results.length === 0 ? '<p>Sin resultados.</p>' : ''; d.results.forEach(g => { const img = document.createElement('img'); img.src = g.media[0].tinygif.url; img.classList.add('compact-media'); img.onclick = () => { enviarMensaje(g.media[0].gif.url, 'image'); up.classList.remove('active'); document.getElementById('gifSearch').value='';}; res.appendChild(img); }); } catch(e) { res.innerHTML = '<p>Error.</p>'; } });
 
 const enviarMensaje = async (texto, tipo = 'text') => { 
     if (!texto) return; const safeText = tipo === 'text' ? escapeHTML(texto) : texto; 

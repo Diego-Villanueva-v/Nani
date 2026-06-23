@@ -46,10 +46,26 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
+// Mostrar/Ocultar contraseña (El ojito)
+document.querySelectorAll('.toggle-password').forEach(icon => {
+    icon.addEventListener('click', function() {
+        const input = this.previousElementSibling;
+        if(input.type === 'password') {
+            input.type = 'text';
+            this.classList.remove('fa-eye');
+            this.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            this.classList.remove('fa-eye-slash');
+            this.classList.add('fa-eye');
+        }
+    });
+});
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('loginBtn');
-    btn.disabled = true; btn.textContent = 'Verificando...';
+    btn.disabled = true; btn.textContent = 'Verificando credenciales...';
     
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
@@ -66,7 +82,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         
         window.location.replace('chat.html');
     } catch (error) {
-        showToast('Correo o contraseña incorrectos.');
+        showToast('Credenciales incorrectas o usuario no encontrado.');
         btn.disabled = false; btn.textContent = 'Iniciar Sesión';
     }
 });
@@ -84,7 +100,7 @@ document.getElementById('googleLogin').addEventListener('click', async () => {
                 email: user.email,
                 avatar: user.photoURL, 
                 fechaRegistro: new Date(),
-                preferences: { color: "#d946ef" } 
+                preferences: { color: "#8b5cf6" } 
             }, { merge: true });
         }
         const splash = document.getElementById('splashScreen');
@@ -93,15 +109,40 @@ document.getElementById('googleLogin').addEventListener('click', async () => {
             setTimeout(() => splash.style.opacity = '1', 50);
         }
         window.location.replace('chat.html');
-    } catch (error) { showToast('Error al conectar con Google.'); }
+    } catch (error) { showToast('Error al establecer conexión con Google.'); }
 });
 
-document.getElementById('forgotPasswordBtn').addEventListener('click', async (e) => {
+// Lógica Modal de Recuperación
+document.getElementById('forgotPasswordBtn').addEventListener('click', (e) => {
     e.preventDefault();
-    const email = document.getElementById('loginEmail').value.trim();
-    if (!email) return showToast('Escribe tu correo arriba para recuperar la clave.', 'error');
+    document.getElementById('recoveryModal').classList.add('active');
+});
+
+document.getElementById('cancelRecoveryBtn').addEventListener('click', () => {
+    document.getElementById('recoveryModal').classList.remove('active');
+    document.getElementById('recoveryEmailInput').value = '';
+});
+
+document.getElementById('sendRecoveryEmailBtn').addEventListener('click', async () => {
+    const email = document.getElementById('recoveryEmailInput').value.trim();
+    if (!email) return showToast('Por favor, ingresa una dirección de correo válida.', 'error');
+    
+    const btn = document.getElementById('sendRecoveryEmailBtn');
+    btn.disabled = true;
+    btn.textContent = 'Procesando...';
+
     try {
         await sendPasswordResetEmail(auth, email);
-        showToast('Correo de recuperación enviado.', 'success');
-    } catch (error) { showToast('Error. Revisa que el correo sea válido.'); }
+        showToast('Enlace de seguridad emitido. Revisa tu bandeja de entrada.', 'success');
+        setTimeout(() => {
+            document.getElementById('recoveryModal').classList.remove('active');
+            document.getElementById('recoveryEmailInput').value = '';
+            btn.disabled = false;
+            btn.textContent = 'Emitir Enlace';
+        }, 2000);
+    } catch (error) { 
+        showToast('Falla en el protocolo. Verifica que el correo esté bien escrito.'); 
+        btn.disabled = false;
+        btn.textContent = 'Emitir Enlace';
+    }
 });

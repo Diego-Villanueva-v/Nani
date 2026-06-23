@@ -23,27 +23,65 @@
     <p style="color: var(--accent); margin-top: 10px; font-weight: 600; letter-spacing: 2px; animation: pulse 1.5s infinite;">CARGANDO...</p>
 </div>
 
-<div id="onboardingModal" class="modal onboarding" style="z-index: 9999;">
-    <div class="modal-content onboard-step active" id="onboardStep1">
-        <h2 style="color: var(--text-main); margin-bottom: 25px; text-align: center;">¿Cuál es tu edad? ✨</h2>
-        <div class="form-group">
-            <input type="number" id="onboardAge" placeholder="Ej: 21" min="13" max="100" style="text-align: center; font-size: 1.2rem;">
+<div id="onboardingModal" class="onboarding-fullscreen" style="z-index: 9999;">
+    
+    <div class="onboard-step active" id="onboardStep1">
+        <h2 class="onboard-title">¿Cuál es tu fecha<br>de nacimiento? 🎂</h2>
+        
+        <div class="dob-wrapper">
+            <input type="text" id="onboardDob" placeholder="DD / MM / YYYY" maxlength="14" autocomplete="off">
         </div>
-        <button id="nextOnboardBtn" class="btn-primary" style="margin-top: 20px;">Siguiente</button>
+        
+        <p id="ageCalcText" class="age-calc-text"></p>
+        
+        <div class="onboard-footer">
+            <button id="nextOnboardBtn" class="btn-onboard" disabled>Siguiente</button>
+        </div>
     </div>
 
-    <div class="modal-content onboard-step" id="onboardStep2">
-        <h2 style="color: var(--text-main); margin-bottom: 25px; text-align: center;">Selecciona tu género ✨</h2>
-        <div class="gender-selector">
-            <div class="gender-btn" data-gender="Masculino">🙋‍♂️ <br>Masculino</div>
-            <div class="gender-btn" data-gender="Femenino">🙋‍♀️ <br>Femenino</div>
-            <div class="gender-btn" data-gender="Otro">🦄 <br>Otro</div>
+    <div class="onboard-step" id="onboardStep2">
+        <h2 class="onboard-title">Selecciona tu<br>género</h2>
+        
+        <div class="gender-grid-modern">
+            <div class="gender-card-modern" data-gender="Masculino">
+                <div class="gc-icon">🙋‍♂️</div>
+                <span>Masculino</span>
+            </div>
+            <div class="gender-card-modern" data-gender="Femenino">
+                <div class="gc-icon">🙋‍♀️</div>
+                <span>Femenino</span>
+            </div>
+            <div class="gender-card-modern" data-gender="Otro">
+                <div class="gc-icon">🦄</div>
+                <span>Otro</span>
+            </div>
         </div>
-        <div style="display: flex; gap: 10px; margin-top: 30px;">
-            <button id="backOnboardBtn" class="btn-primary-outline" style="flex:1;">Atrás</button>
-            <button id="finishOnboardBtn" class="btn-primary" style="flex:2;">Empezar</button>
+        
+        <div class="onboard-footer">
+            <button id="nextOnboardBtn2" class="btn-onboard">Siguiente</button>
         </div>
     </div>
+
+    <div class="onboard-step" id="onboardStep3">
+        <h2 class="onboard-title">Selecciona tu país</h2>
+        
+        <div class="country-trigger" id="countryTriggerBtn">
+            <span id="selectedCountryText">🇨🇱 Chile</span>
+        </div>
+
+        <div class="onboard-footer">
+            <button id="finishOnboardBtn" class="btn-onboard">Siguiente</button>
+        </div>
+    </div>
+</div>
+
+<div id="countryListModal" class="country-list-modal">
+    <div class="cl-header">
+        <i class="fas fa-times" id="closeCountryList" style="font-size: 1.5rem; cursor: pointer; color: white;"></i>
+        <input type="text" id="countrySearchInput" placeholder="Enter country name" autocomplete="off">
+    </div>
+    <ul class="cl-list" id="countryListUl">
+        </ul>
 </div>
 
 <div class="chat-layout">
@@ -142,17 +180,17 @@
 
             <div id="joinRoomPrompt" class="join-room-overlay">
                 <p style="margin-bottom: 15px; color: var(--text-main); font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Estás en modo espectador.</p>
-                <button id="btnJoinCurrentRoom" class="btn-primary" style="max-width: 300px; padding: 16px; font-size: 1.1rem; box-shadow: 0 10px 20px rgba(217, 70, 239, 0.4);">Unirse a la sala</button>
+                <button id="btnJoinCurrentRoom" class="btn-primary" style="max-width: 300px; padding: 16px; font-size: 1.1rem; box-shadow: 0 10px 20px rgba(139, 92, 246, 0.4);">Unirse a la sala</button>
             </div>
 
             <div id="unifiedPicker" class="unified-picker">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div class="picker-tabs" style="margin: 0; padding: 0; border: none;">
-                        <button class="picker-tab active" data-target="emojiSection">😀</button>
-                        <button class="picker-tab" data-target="gifSection">🎞️ GIFs</button>
-                        <button class="picker-tab" data-target="stickerSection">⭐️ Stickers</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="picker-tabs" style="margin: 0; padding: 0; border: none; width: 100%;">
+                        <button class="picker-tab active" data-target="emojiSection">Emojis</button>
+                        <button class="picker-tab" data-target="gifSection">GIFs</button>
+                        <button class="picker-tab" data-target="stickerSection">Stickers</button>
                     </div>
-                    <button id="closeUnifiedPickerBtn" class="btn-icon-small" style="padding: 4px 8px;"><i class="fas fa-times"></i></button>
+                    <button id="closeUnifiedPickerBtn" class="btn-icon-small" style="padding: 4px 8px; margin-left: 10px; border-radius: 50%;"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="picker-content active" id="emojiSection"><div id="emojiPickerContent" class="emoji-grid"></div></div>
                 <div class="picker-content" id="gifSection">
@@ -280,9 +318,14 @@
                 </div>
                 <button id="editProfileToggleBtn" class="btn-primary-outline" style="width: auto; padding: 6px 12px; font-size: 0.8rem; display: none;"><i class="fas fa-pen"></i> Editar</button>
             </div>
+            
             <div id="dProfileStatusBadge" class="discord-status" style="margin-top:10px;">
                 <span class="status-dot"></span> <span class="status-text"></span>
             </div>
+            
+            <div id="dProfileDemographics" style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+            </div>
+
             <p id="dProfileBio" style="margin-top: 15px; color: var(--text-muted); font-size: 0.9rem; line-height: 1.4; word-wrap: break-word;"></p>
         </div>
 
@@ -306,12 +349,15 @@
             
             <div class="form-group">
                 <label>Estado</label>
-                <select id="statusSelect" class="status-selector-modern">
-                    <option value="Disponible">🟢 Disponible</option>
-                    <option value="Ausente">🌙 Ausente</option>
-                    <option value="Ocupado">🔴 Ocupado</option>
-                    <option value="Invisible">👻 Invisible</option>
-                </select>
+                <div class="custom-status-select" id="customStatusTrigger">
+                    <div class="custom-status-selected" id="customStatusSelectedText">🟢 Disponible</div>
+                    <div class="custom-status-options" id="customStatusOptions">
+                        <div data-value="Disponible">🟢 Disponible</div>
+                        <div data-value="Ausente">🌙 Ausente</div>
+                        <div data-value="Ocupado">🔴 Ocupado</div>
+                        <div data-value="Invisible">👻 Invisible</div>
+                    </div>
+                </div>
             </div>
             
             <div class="color-selectors" style="margin-top: 15px; background: rgba(0,0,0,0.2);">
@@ -347,6 +393,22 @@
     <div class="modal-content config-scrollable">
         <h3 style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">Ajustes</h3>
         
+        <div class="settings-section">
+            <h4 style="color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase;">Privacidad</h4>
+            <div class="toggle-row">
+                <span><i class="fas fa-map-marker-alt"></i> Mostrar mi Ubicación</span>
+                <input type="checkbox" id="showLocToggle" class="toggle-switch" checked>
+            </div>
+            <div class="toggle-row">
+                <span><i class="fas fa-eye"></i> Mostrar mi Edad</span>
+                <input type="checkbox" id="showAgeToggle" class="toggle-switch" checked>
+            </div>
+            <div class="toggle-row">
+                <span><i class="fas fa-check-double"></i> Confirmaciones de lectura</span>
+                <input type="checkbox" id="readReceiptsToggle" class="toggle-switch" checked>
+            </div>
+        </div>
+
         <div class="settings-section">
             <h4 style="color: var(--accent); margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase;">Preferencias</h4>
             <div class="toggle-row">
